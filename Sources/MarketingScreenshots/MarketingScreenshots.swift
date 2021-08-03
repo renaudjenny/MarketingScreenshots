@@ -59,6 +59,7 @@ public enum MarketingScreenshots {
         for device in devices {
             if device == .mac {
                 print("     🖥 Mac is available. Nothing to do")
+                continue
             } else if availableDevices.contains(device.simulatorName) {
                 print("     📲 \(device.simulatorName) simulator is available. Nothing to do")
                 continue
