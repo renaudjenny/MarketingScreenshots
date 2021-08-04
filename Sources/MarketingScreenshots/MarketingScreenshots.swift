@@ -136,9 +136,15 @@ public enum MarketingScreenshots {
         }
 
         guard marketingTestPlan.status == 0 else {
-            throw ExecutionError.uiTestFailed(
-                marketingTestPlan.output ?? "Cannot print xcodebuild errors..."
-            )
+            marketingTestPlan.output.map {
+                let lines = $0.split(separator: "\n")
+                let twoFirstLines = lines.prefix(2)
+                let thirtyLastLines = lines.suffix(30)
+                let output = (twoFirstLines + ["..."] + thirtyLastLines).joined(separator: "\n")
+                print("     🥺 Something went wrong... Let's print the 2 first lines and the 30 last lines of the output from Xcode test\n\(output)")
+            } ?? print("     🥺 Cannot print xcodebuild errors...")
+
+            throw ExecutionError.uiTestFailed("Marketing Test Plan failed. See errors above")
         }
         print("     ✅ Generation of screenshots for \(device.simulatorName) via test plan done")
 
