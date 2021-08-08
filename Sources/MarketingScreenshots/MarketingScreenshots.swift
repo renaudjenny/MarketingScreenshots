@@ -108,8 +108,10 @@ public enum MarketingScreenshots {
         exportFolder: String,
         planName: String
     ) throws {
-        print("🧹 Clean the last derived data at path \(derivedDataPath)")
-        try FileManager.default.removeItem(atPath: derivedDataPath)
+        if FileManager.default.fileExists(atPath: derivedDataPath) {
+            print("🧹 Clean the last derived data at path \(derivedDataPath)")
+            try FileManager.default.removeItem(atPath: derivedDataPath)
+        }
 
         if device != .mac {
             print("📱 Currently running on Simulator named: \(device.simulatorName) for screenshot size \(device.screenDescription)")

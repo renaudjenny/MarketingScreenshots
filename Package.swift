@@ -12,7 +12,7 @@ let package = Package(
             targets: ["MarketingScreenshots"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/MaxDesiatov/XMLCoder.git", from: "0.12.0"),
+        .package(url: "https://github.com/MaxDesiatov/XMLCoder.git", from: "0.13.0"),
         .package(url: "https://github.com/davidahouse/XCResultKit", from: "0.9.2"),
     ],
     targets: [
