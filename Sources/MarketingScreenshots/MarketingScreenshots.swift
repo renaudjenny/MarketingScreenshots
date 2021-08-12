@@ -3,33 +3,39 @@ import XCResultKit
 import XMLCoder
 
 public enum MarketingScreenshots {
-    public static func run(
+    private static let derivedDataPath = "\(currentDirectoryPath)/.DerivedDataMarketing"
+    private static let exportFolder = "\(currentDirectoryPath)/.ExportedScreenshots"
+
+    public static func iOS(
         devices: [Device],
-        iOSProjectName: String,
-        macProjectName: String,
+        projectName: String,
         planName: String = "Marketing"
     ) throws {
-        print("🗂 Working directory: \(currentDirectoryPath)")
+        try prepare()
+        try checkSimulatorAvailability(devices: devices)
+        try generateScreenshots(project: .iOS(projectName, devices), planName: planName)
+        try openScreenshotsFolder()
+    }
 
-        let derivedDataPath = "\(currentDirectoryPath)/.DerivedDataMarketing"
-        let exportFolder = "\(currentDirectoryPath)/.ExportedScreenshots"
+    public static func macOS(
+        projectName: String,
+        planName: String = "Marketing"
+    ) throws {
+        try prepare()
+        try generateScreenshots(project: .macOS(planName), planName: planName)
+        try openScreenshotsFolder()
+    }
+
+    private static func prepare() throws {
+        print("🗂 Working directory: \(currentDirectoryPath)")
 
         guard shell(command: .mkdir, arguments: ["-p", exportFolder]).status == 0
         else {
             throw ExecutionError.commandFailed("mkdir failed to create the folder \(exportFolder)")
         }
+    }
 
-        try checkSimulatorAvailability(devices: devices)
-
-        try generateScreenshots(
-            devices: devices,
-            iOSProjectName: iOSProjectName,
-            macProjectName: macProjectName,
-            derivedDataPath: derivedDataPath,
-            exportFolder: exportFolder,
-            planName: planName
-        )
-
+    private static func openScreenshotsFolder() throws {
         guard shell(command: .open, arguments: [exportFolder]).status == 0
         else {
             throw ExecutionError.commandFailed(
@@ -57,10 +63,7 @@ public enum MarketingScreenshots {
             .devices.flatMap { $0.value.map { $0.name } }
 
         for device in devices {
-            if device == .mac {
-                print("     🖥 Mac is available. Nothing to do")
-                continue
-            } else if availableDevices.contains(device.simulatorName) {
+            guard !availableDevices.contains(device.simulatorName) else {
                 print("     📲 \(device.simulatorName) simulator is available. Nothing to do")
                 continue
             }
@@ -79,33 +82,21 @@ public enum MarketingScreenshots {
         }
     }
 
-    private static func generateScreenshots(
-        devices: [Device],
-        iOSProjectName: String,
-        macProjectName: String,
-        derivedDataPath: String,
-        exportFolder: String,
-        planName: String
-    ) throws {
+    private static func generateScreenshots(project: Project, planName: String) throws {
         print("📺 Starting generating Marketing screenshots...")
-        for device in devices {
-            try runTest(
-                device: device,
-                iOSProjectName: iOSProjectName,
-                macProjectName: macProjectName,
-                derivedDataPath: derivedDataPath,
-                exportFolder: exportFolder,
-                planName: planName
-            )
+        switch project {
+        case let .iOS(projectName, devices):
+            for device in devices {
+                try iOSScreenshots(for: device, projectName: projectName, planName: planName)
+            }
+        case let .macOS(projectName):
+            try macOSScreenshots(projectName: projectName, planName: planName)
         }
     }
 
-    private static func runTest(
-        device: Device,
-        iOSProjectName: String,
-        macProjectName: String,
-        derivedDataPath: String,
-        exportFolder: String,
+    private static func iOSScreenshots(
+        for device: Device,
+        projectName: String,
         planName: String
     ) throws {
         if FileManager.default.fileExists(atPath: derivedDataPath) {
@@ -113,32 +104,17 @@ public enum MarketingScreenshots {
             try FileManager.default.removeItem(atPath: derivedDataPath)
         }
 
-        if device != .mac {
-            print("📱 Currently running on Simulator named: \(device.simulatorName) for screenshot size \(device.screenDescription)")
-        } else {
-            print("💻 Currently running on this mac")
-        }
+        print("📱 Currently running on Simulator named: \(device.simulatorName) for screenshot size \(device.screenDescription)")
         print("     👷‍♀️ Generation of screenshots for \(device.simulatorName) via test plan in progress")
         print("     🐢 This usually takes some time...")
 
-        let marketingTestPlan: (output: String?, status: Int32)
-        if device == .mac {
-            marketingTestPlan = shell(command: .xcodebuild, arguments: [
-                "test",
-                "-scheme", macProjectName,
-                "-derivedDataPath", derivedDataPath,
-                "-testPlan", planName,
-                "CODE_SIGNING_ALLOWED=NO",
-            ])
-        } else {
-            marketingTestPlan = shell(command: .xcodebuild, arguments: [
-                "test",
-                "-scheme", iOSProjectName,
-                "-destination", "platform=iOS Simulator,name=\(device.simulatorName)",
-                "-derivedDataPath", derivedDataPath,
-                "-testPlan", planName,
-            ])
-        }
+        let marketingTestPlan = shell(command: .xcodebuild, arguments: [
+            "test",
+            "-scheme", projectName,
+            "-destination", "platform=iOS Simulator,name=\(device.simulatorName)",
+            "-derivedDataPath", derivedDataPath,
+            "-testPlan", planName,
+        ])
 
         guard marketingTestPlan.status == 0 else {
             marketingTestPlan.output.map {
@@ -175,22 +151,81 @@ public enum MarketingScreenshots {
             print("         ⛏ extraction for the configuration \(summary.name) in progress")
             for test in summary.screenshotTests ?? [] {
                 try exportScreenshot(
-                    device: device,
+                    description: (name: device.simulatorName, screen: device.screenDescription),
                     result: result,
                     summary: summary,
-                    test: test,
-                    exportFolder: exportFolder
+                    test: test
+                )
+            }
+        }
+    }
+
+    private static func macOSScreenshots(projectName: String, planName: String) throws {
+        if FileManager.default.fileExists(atPath: derivedDataPath) {
+            print("🧹 Clean the last derived data at path \(derivedDataPath)")
+            try FileManager.default.removeItem(atPath: derivedDataPath)
+        }
+        print("💻 Currently running on this mac")
+        print("     👷‍♀️ Generation of screenshots for mac via test plan in progress")
+        print("     🐢 This usually takes some time...")
+
+        let marketingTestPlan = shell(command: .xcodebuild, arguments: [
+            "test",
+            "-scheme", projectName,
+            "-derivedDataPath", derivedDataPath,
+            "-testPlan", planName,
+            "CODE_SIGNING_ALLOWED=NO",
+        ])
+
+        guard marketingTestPlan.status == 0 else {
+            marketingTestPlan.output.map {
+                let lines = $0.split(separator: "\n")
+                let twoFirstLines = lines.prefix(2)
+                let thirtyLastLines = lines.suffix(30)
+                let output = (twoFirstLines + ["..."] + thirtyLastLines).joined(separator: "\n")
+                print("     🥺 Something went wrong... Let's print the 2 first lines and the 30 last lines of the output from Xcode test\n\(output)")
+            } ?? print("     🥺 Cannot print xcodebuild errors...")
+
+            throw ExecutionError.uiTestFailed("Marketing Test Plan failed. See errors above")
+        }
+        print("     ✅ Generation of screenshots for mac via test plan done")
+
+        print("     👷‍♀️ Extraction and renaming of screenshots for mac in progress")
+
+        let path = "\(derivedDataPath)/Logs/Test/LogStoreManifest.plist"
+
+        let resultFile = try XMLDecoder().decode(
+            LogStoreManifest.self,
+            from: Data(contentsOf: URL(fileURLWithPath: path))
+        )
+
+        let lastXCResultFileNameURL = URL(
+            fileURLWithPath: "\(derivedDataPath)/Logs/Test/\(resultFile.lastXCResultFileName)"
+        )
+        let result = XCResultFile(url: lastXCResultFileNameURL)
+
+        guard let testPlanRunSummariesId = result.testPlanSummariesId
+        else {
+            throw ExecutionError.uiTestFailed("No TestPlan found!")
+        }
+        for summary in result.getTestPlanRunSummaries(id: testPlanRunSummariesId)?.summaries ?? [] {
+            print("         ⛏ extraction for the configuration \(summary.name) in progress")
+            for test in summary.screenshotTests ?? [] {
+                try exportScreenshot(
+                    description: (name: "mac", screen: "mac"),
+                    result: result,
+                    summary: summary,
+                    test: test
                 )
             }
         }
     }
 
     private static func exportScreenshot(
-        device: Device,
+        description: (name: String, screen: String),
         result: XCResultFile,
         summary: ActionTestPlanRunSummary,
-        test: ActionTestMetadata,
-        exportFolder: String
+        test: ActionTestMetadata
     ) throws {
         let normalizedTestName = test.name
             .replacingOccurrences(of: "test", with: "")
@@ -218,8 +253,8 @@ public enum MarketingScreenshots {
             )
         }
 
-        let path = "\(exportFolder)/Screenshot - \(device.screenDescription) - \(summary.name)"
-            + " - \(normalizedTestName) - \(device.simulatorName).png"
+        let path = "\(exportFolder)/Screenshot - \(description.screen) - \(summary.name)"
+            + " - \(normalizedTestName) - \(description.name).png"
         try screenshotData.write(to: URL(fileURLWithPath: path))
         print("              📸 \(normalizedTestName) is available here: \(path)")
     }

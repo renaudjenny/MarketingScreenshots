@@ -18,8 +18,6 @@ public extension MarketingScreenshots {
         // case iPad_8th_Generation = "iPad (8th generation)",
         case iPadPro_97 = "iPad Pro (9.7-inch)"
 
-        case mac = "Mac"
-
         public var simulatorName: String { rawValue }
 
         public var screenDescription: String {
@@ -35,8 +33,6 @@ public extension MarketingScreenshots {
             case .iPadPro_110_1st_Generation: return "11 inch"
             // case .iPad_8th_Generation : return "10.5 inch"
             case .iPadPro_97: return "9.7 inch"
-
-            case .mac: return "screen of the mac"
             }
         }
     }
