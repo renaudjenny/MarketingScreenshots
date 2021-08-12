@@ -99,11 +99,7 @@ public enum MarketingScreenshots {
         projectName: String,
         planName: String
     ) throws {
-        if FileManager.default.fileExists(atPath: derivedDataPath) {
-            print("🧹 Clean the last derived data at path \(derivedDataPath)")
-            try FileManager.default.removeItem(atPath: derivedDataPath)
-        }
-
+        try cleanUpDerivedDataIfNeeded()
         print("📱 Currently running on Simulator named: \(device.simulatorName) for screenshot size \(device.screenDescription)")
         print("     👷‍♀️ Generation of screenshots for \(device.simulatorName) via test plan in progress")
         print("     🐢 This usually takes some time...")
@@ -116,55 +112,15 @@ public enum MarketingScreenshots {
             "-testPlan", planName,
         ])
 
-        guard marketingTestPlan.status == 0 else {
-            marketingTestPlan.output.map {
-                let lines = $0.split(separator: "\n")
-                let twoFirstLines = lines.prefix(2)
-                let thirtyLastLines = lines.suffix(30)
-                let output = (twoFirstLines + ["..."] + thirtyLastLines).joined(separator: "\n")
-                print("     🥺 Something went wrong... Let's print the 2 first lines and the 30 last lines of the output from Xcode test\n\(output)")
-            } ?? print("     🥺 Cannot print xcodebuild errors...")
-
-            throw ExecutionError.uiTestFailed("Marketing Test Plan failed. See errors above")
-        }
-        print("     ✅ Generation of screenshots for \(device.simulatorName) via test plan done")
-
-        print("     👷‍♀️ Extraction and renaming of screenshots for \(device.simulatorName) in progress")
-
-        let path = "\(derivedDataPath)/Logs/Test/LogStoreManifest.plist"
-
-        let resultFile = try XMLDecoder().decode(
-            LogStoreManifest.self,
-            from: Data(contentsOf: URL(fileURLWithPath: path))
+        try extractScreenshots(
+            from: marketingTestPlan,
+            name: device.simulatorName,
+            screenDescription: device.screenDescription
         )
-
-        let lastXCResultFileNameURL = URL(
-            fileURLWithPath: "\(derivedDataPath)/Logs/Test/\(resultFile.lastXCResultFileName)"
-        )
-        let result = XCResultFile(url: lastXCResultFileNameURL)
-
-        guard let testPlanRunSummariesId = result.testPlanSummariesId
-        else {
-            throw ExecutionError.uiTestFailed("No TestPlan found!")
-        }
-        for summary in result.getTestPlanRunSummaries(id: testPlanRunSummariesId)?.summaries ?? [] {
-            print("         ⛏ extraction for the configuration \(summary.name) in progress")
-            for test in summary.screenshotTests ?? [] {
-                try exportScreenshot(
-                    description: (name: device.simulatorName, screen: device.screenDescription),
-                    result: result,
-                    summary: summary,
-                    test: test
-                )
-            }
-        }
     }
 
     private static func macOSScreenshots(projectName: String, planName: String) throws {
-        if FileManager.default.fileExists(atPath: derivedDataPath) {
-            print("🧹 Clean the last derived data at path \(derivedDataPath)")
-            try FileManager.default.removeItem(atPath: derivedDataPath)
-        }
+        try cleanUpDerivedDataIfNeeded()
         print("💻 Currently running on this mac")
         print("     👷‍♀️ Generation of screenshots for mac via test plan in progress")
         print("     🐢 This usually takes some time...")
@@ -177,6 +133,25 @@ public enum MarketingScreenshots {
             "CODE_SIGNING_ALLOWED=NO",
         ])
 
+        try extractScreenshots(
+            from: marketingTestPlan,
+            name: "mac",
+            screenDescription: "mac screen"
+        )
+    }
+
+    private static func cleanUpDerivedDataIfNeeded() throws {
+        if FileManager.default.fileExists(atPath: derivedDataPath) {
+            print("🧹 Clean the last derived data at path \(derivedDataPath)")
+            try FileManager.default.removeItem(atPath: derivedDataPath)
+        }
+    }
+
+    private static func extractScreenshots(
+        from marketingTestPlan: (output: String?, status: Int32),
+        name: String,
+        screenDescription: String
+    ) throws {
         guard marketingTestPlan.status == 0 else {
             marketingTestPlan.output.map {
                 let lines = $0.split(separator: "\n")
@@ -188,9 +163,9 @@ public enum MarketingScreenshots {
 
             throw ExecutionError.uiTestFailed("Marketing Test Plan failed. See errors above")
         }
-        print("     ✅ Generation of screenshots for mac via test plan done")
+        print("     ✅ Generation of screenshots for \(name) via test plan done")
 
-        print("     👷‍♀️ Extraction and renaming of screenshots for mac in progress")
+        print("     👷‍♀️ Extraction and renaming of screenshots for \(name) in progress")
 
         let path = "\(derivedDataPath)/Logs/Test/LogStoreManifest.plist"
 
@@ -212,7 +187,8 @@ public enum MarketingScreenshots {
             print("         ⛏ extraction for the configuration \(summary.name) in progress")
             for test in summary.screenshotTests ?? [] {
                 try exportScreenshot(
-                    description: (name: "mac", screen: "mac"),
+                    name: name,
+                    screenDescription: screenDescription,
                     result: result,
                     summary: summary,
                     test: test
@@ -222,7 +198,8 @@ public enum MarketingScreenshots {
     }
 
     private static func exportScreenshot(
-        description: (name: String, screen: String),
+        name: String,
+        screenDescription: String,
         result: XCResultFile,
         summary: ActionTestPlanRunSummary,
         test: ActionTestMetadata
@@ -253,8 +230,8 @@ public enum MarketingScreenshots {
             )
         }
 
-        let path = "\(exportFolder)/Screenshot - \(description.screen) - \(summary.name)"
-            + " - \(normalizedTestName) - \(description.name).png"
+        let path = "\(exportFolder)/Screenshot - \(screenDescription) - \(summary.name)"
+            + " - \(normalizedTestName) - \(name).png"
         try screenshotData.write(to: URL(fileURLWithPath: path))
         print("              📸 \(normalizedTestName) is available here: \(path)")
     }
