@@ -59,12 +59,26 @@ public enum MarketingScreenshots {
             )
         }
 
-        let availableDevices = (try JSONDecoder().decode(SimulatorList.self, from: deviceListData))
-            .devices.flatMap { $0.value.map { $0.name } }
+        let simulators = try JSONDecoder().decode(SimulatorList.self, from: deviceListData)
+        let availableDevices = simulators.devices.flatMap { $0.value.map { $0.name } }
 
         for device in devices {
             guard !availableDevices.contains(device.simulatorName) else {
-                print("     📲 \(device.simulatorName) simulator is available. Nothing to do")
+                print("     📲 \(device.simulatorName) simulator is created. Checking the status...")
+                let simulator = simulators.simulator(named: device.simulatorName)
+                let state: String
+                switch simulator?.state {
+                case .booted: state = "Booted"
+                case .shutdown: state = "Shutdown"
+                case .none: state = "Unknown"
+                }
+                let availability = (simulator?.isAvailable ?? false) ? "Available" : "Unavailable"
+                print("     🚥 Device state: \(state), availability: \(availability)")
+
+                if simulator?.state != .shutdown {
+                    try shutdownSimulator(named: device.simulatorName)
+                }
+
                 continue
             }
 
@@ -101,6 +115,15 @@ public enum MarketingScreenshots {
     ) throws {
         try cleanUpDerivedDataIfNeeded()
         print("📱 Currently running on Simulator named: \(device.simulatorName) for screenshot size \(device.screenDescription)")
+        print("     📲 Booting the device: \(device.simulatorName)")
+        let boot = shell(command: .xcrun, arguments: ["simctl", "boot", device.simulatorName])
+        guard boot.status == 0 else {
+            throw ExecutionError.commandFailed("""
+            xcrun simctl boot \(device.simulatorName) failed with errors:
+            \(boot.output ?? "Output unavailable")
+            """)
+        }
+
         print("     👷‍♀️ Generation of screenshots for \(device.simulatorName) via test plan in progress")
         print("     🐢 This usually takes some time...")
 
@@ -117,6 +140,8 @@ public enum MarketingScreenshots {
             name: device.simulatorName,
             screenDescription: device.screenDescription
         )
+
+        try shutdownSimulator(named: device.simulatorName)
     }
 
     private static func macOSScreenshots(projectName: String, planName: String) throws {
@@ -234,5 +259,16 @@ public enum MarketingScreenshots {
             + " - \(normalizedTestName) - \(name).png"
         try screenshotData.write(to: URL(fileURLWithPath: path))
         print("              📸 \(normalizedTestName) is available here: \(path)")
+    }
+
+    private static func shutdownSimulator(named name: String) throws {
+        print("     📱💤 Shutting down the device: \(name)")
+        let shutdown = shell(command: .xcrun, arguments: ["simctl", "shutdown", name])
+        guard shutdown.status == 0 else {
+            throw ExecutionError.commandFailed("""
+            xcrun simctl shutdown \(name) failed with errors:
+            \(shutdown.output ?? "Output unavailable")
+            """)
+        }
     }
 }
