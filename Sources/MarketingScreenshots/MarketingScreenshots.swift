@@ -22,7 +22,7 @@ public enum MarketingScreenshots {
         planName: String = "Marketing"
     ) throws {
         try prepare()
-        try generateScreenshots(project: .macOS(planName), planName: planName)
+        try generateScreenshots(project: .macOS(projectName), planName: planName)
         try openScreenshotsFolder()
     }
 
@@ -125,6 +125,7 @@ public enum MarketingScreenshots {
         }
 
         print("     👷‍♀️ Generation of screenshots for \(device.simulatorName) via test plan in progress")
+        print("     🧵 This will run on thread \(Thread.current)")
         print("     🐢 This usually takes some time...")
 
         let marketingTestPlan = shell(command: .xcodebuild, arguments: [
