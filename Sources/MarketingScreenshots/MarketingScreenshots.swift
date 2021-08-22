@@ -126,7 +126,9 @@ public enum MarketingScreenshots {
 
         print("     👷‍♀️ Generation of screenshots for \(device.simulatorName) via test plan in progress")
         print("     🧵 This will run on thread \(Thread.current)")
-        print("     🐢 This usually takes some time...")
+        print("     🐢 This usually takes some time and some resources...")
+        print("     🩺 Let's measure the RAM consumption before running the test")
+        printMemoryUsage()
 
         let marketingTestPlan = shell(command: .xcodebuild, arguments: [
             "test",
@@ -135,6 +137,9 @@ public enum MarketingScreenshots {
             "-derivedDataPath", derivedDataPath,
             "-testPlan", planName,
         ])
+
+        print("     🩺 Let's measure the RAM consumption after running the test")
+        printMemoryUsage()
 
         try extractScreenshots(
             from: marketingTestPlan,
@@ -149,7 +154,9 @@ public enum MarketingScreenshots {
         try cleanUpDerivedDataIfNeeded()
         print("💻 Currently running on this mac")
         print("     👷‍♀️ Generation of screenshots for mac via test plan in progress")
-        print("     🐢 This usually takes some time...")
+        print("     🐢 This usually takes some time and some resources...")
+        print("     🩺 Let's measure the RAM consumption before running the test")
+        printMemoryUsage()
 
         let marketingTestPlan = shell(command: .xcodebuild, arguments: [
             "test",
@@ -158,6 +165,9 @@ public enum MarketingScreenshots {
             "-testPlan", planName,
             "CODE_SIGNING_ALLOWED=NO",
         ])
+
+        print("     🩺 Let's measure the RAM consumption after running the test")
+        printMemoryUsage()
 
         try extractScreenshots(
             from: marketingTestPlan,
@@ -182,9 +192,9 @@ public enum MarketingScreenshots {
             marketingTestPlan.output.map {
                 let lines = $0.split(separator: "\n")
                 let twoFirstLines = lines.prefix(2)
-                let thirtyLastLines = lines.suffix(30)
+                let thirtyLastLines = lines.suffix(50)
                 let output = (twoFirstLines + ["..."] + thirtyLastLines).joined(separator: "\n")
-                print("     🥺 Something went wrong... Let's print the 2 first lines and the 30 last lines of the output from Xcode test\n\(output)")
+                print("     🥺 Something went wrong... Let's print the 2 first lines and the 50 last lines of the output from Xcode test\n\(output)")
             } ?? print("     🥺 Cannot print xcodebuild errors...")
 
             throw ExecutionError.uiTestFailed("Marketing Test Plan failed. See errors above")
@@ -271,5 +281,45 @@ public enum MarketingScreenshots {
             \(shutdown.output ?? "Output unavailable")
             """)
         }
+    }
+
+    // Code available here: https://gist.github.com/pejalo/671dd2f67e3877b18c38c749742350ca
+    private static func getMemoryUsedAndDeviceTotalInMegabytes() -> (Float, Float) {
+
+        // https://stackoverflow.com/questions/5887248/ios-app-maximum-memory-budget/19692719#19692719
+        // https://stackoverflow.com/questions/27556807/swift-pointer-problems-with-mach-task-basic-info/27559770#27559770
+
+        var used_megabytes: Float = 0
+
+        let total_bytes = Float(ProcessInfo.processInfo.physicalMemory)
+        let total_megabytes = total_bytes / 1024.0 / 1024.0
+
+        var info = mach_task_basic_info()
+        var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size)/4
+
+        let kerr: kern_return_t = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: 1) {
+                task_info(
+                    mach_task_self_,
+                    task_flavor_t(MACH_TASK_BASIC_INFO),
+                    $0,
+                    &count
+                )
+            }
+        }
+
+        if kerr == KERN_SUCCESS {
+            let used_bytes: Float = Float(info.resident_size)
+            used_megabytes = used_bytes / 1024.0 / 1024.0
+        }
+
+        return (used_megabytes, total_megabytes)
+    }
+
+    private static func printMemoryUsage() {
+        let (used, total) = getMemoryUsedAndDeviceTotalInMegabytes()
+        let formattedUsed = String(format: "%.2f", used)
+        let formattedTotal = String(format: "%.2f", total)
+        print("     🗃 Memory used: \(formattedUsed)/\(formattedTotal)")
     }
 }
