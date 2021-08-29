@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import XCResultKit
 import XMLCoder
@@ -6,33 +7,53 @@ public enum MarketingScreenshots {
     private static let derivedDataPath = "\(currentDirectoryPath)/.DerivedDataMarketing"
     private static let exportFolder = "\(currentDirectoryPath)/.ExportedScreenshots"
 
+    private static var cancellable: AnyCancellable? = nil
+
     public static func iOS(
         devices: [Device],
         projectName: String,
         planName: String = "Marketing"
     ) throws {
-        try prepare()
-        try checkSimulatorAvailability(devices: devices)
-        try generateScreenshots(project: .iOS(projectName, devices), planName: planName)
-        try openScreenshotsFolder()
+        let dispatchGroup = DispatchGroup()
+
+        dispatchGroup.enter()
+        cancellable = prepare()
+//            .map { checkSimulatorAvailability(devices: devices) }
+            .sink { completion in
+                switch completion {
+                case .finished: break
+                case let .failure(error):
+                    print("Process failed with error: \(error)")
+                    dispatchGroup.leave()
+                }
+            } receiveValue: { _ in
+                print("...")
+                dispatchGroup.leave()
+            }
+//        try generateScreenshots(project: .iOS(projectName, devices), planName: planName)
+//        try openScreenshotsFolder()
+
+        dispatchGroup.wait()
     }
 
     public static func macOS(
         projectName: String,
         planName: String = "Marketing"
     ) throws {
-        try prepare()
-        try generateScreenshots(project: .macOS(projectName), planName: planName)
-        try openScreenshotsFolder()
+//        try prepare()
+//        try generateScreenshots(project: .macOS(projectName), planName: planName)
+//        try openScreenshotsFolder()
     }
 
-    private static func prepare() throws {
-        print("🗂 Working directory: \(currentDirectoryPath)")
-
-        guard shell(command: .mkdir, arguments: ["-p", exportFolder]).status == 0
-        else {
-            throw ExecutionError.commandFailed("mkdir failed to create the folder \(exportFolder)")
-        }
+    private static func prepare() -> AnyPublisher<Void, Error> {
+        Process.run(.mkdir, arguments: ["-p", exportFolder])
+            .message("🗂 Working directory: \(currentDirectoryPath)")
+            .tryMap { output, process in
+                guard process.terminationStatus == 0 else {
+                    throw ExecutionError.commandFailed("mkdir failed to create the folder \(exportFolder)")
+                }
+            }
+            .eraseToAnyPublisher()
     }
 
     private static func openScreenshotsFolder() throws {
@@ -44,56 +65,58 @@ public enum MarketingScreenshots {
         }
     }
 
-    private static func checkSimulatorAvailability(devices: [Device]) throws {
-        print("🤖 Check simulators available and if they are ready to be used for screenshots")
-        let deviceList = shell(
-            command: .xcrun,
-            arguments: ["simctl", "list", "-j", "devices", "available"]
-        )
-        guard deviceList.status == 0,
-              let deviceListJSON = deviceList.output,
-              let deviceListData = deviceListJSON.data(using: .utf8)
-        else {
-            throw ExecutionError.commandFailed(
-                "xcrun simctl list -j devices available failed to found the devices list"
-            )
-        }
-
-        let simulators = try JSONDecoder().decode(SimulatorList.self, from: deviceListData)
-        let availableDevices = simulators.devices.flatMap { $0.value.map { $0.name } }
-
-        for device in devices {
-            guard !availableDevices.contains(device.simulatorName) else {
-                print("     📲 \(device.simulatorName) simulator is created. Checking the status...")
-                let simulator = simulators.simulator(named: device.simulatorName)
-                let state: String
-                switch simulator?.state {
-                case .booted: state = "Booted"
-                case .shutdown: state = "Shutdown"
-                case .none: state = "Unknown"
+    private static func checkSimulatorAvailability(devices: [Device]) -> AnyPublisher<Void, Error> {
+        Process.run(.xcrun, arguments: ["simctl", "list", "-j", "devices", "available"])
+            .message("🤖 Check simulators available and if they are ready to be used for screenshots")
+            .tryCompactMap { output, process in
+                guard process.terminationStatus == 0 else {
+                    throw ExecutionError.commandFailed(
+                        "xcrun simctl list -j devices available failed to found the devices list"
+                    )
                 }
-                let availability = (simulator?.isAvailable ?? false) ? "Available" : "Unavailable"
-                print("     🚥 Device state: \(state), availability: \(availability)")
+                return output
+            }
+            .compactMap { (json: String) in json.data(using: .utf8) }
+            .decode(type: SimulatorList.self, decoder: JSONDecoder())
+            .flatMap { simulators -> AnyPublisher<Void, Error> in
+                let availableDevices = simulators.devices.flatMap { $0.value.map(\.name) }
 
-                if simulator?.state != .shutdown {
-                    try shutdownSimulator(named: device.simulatorName)
+                return Publishers.MergeMany(devices.map { device -> AnyPublisher<Void, Error> in
+                    if availableDevices.contains(device.simulatorName) {
+                        print("     📲 \(device.simulatorName) simulator is created. Checking the status...")
+                        let simulator = simulators.simulator(named: device.simulatorName)
+                        let state: String
+                        switch simulator?.state {
+                        case .booted: state = "Booted"
+                        case .shutdown: state = "Shutdown"
+                        case .none: state = "Unknown"
+                        }
+                        let availability = (simulator?.isAvailable ?? false) ? "Available" : "Unavailable"
+                        print("     🚥 Device state: \(state), availability: \(availability)")
+
+                        if simulator?.state != .shutdown {
+                            return shutdownSimulator(named: device.simulatorName)
+                        }
+                        return Future { $0(.success(())) }.eraseToAnyPublisher()
+                    }
+                    return createSimulator(name: device.simulatorName)
+                })
+                .eraseToAnyPublisher()
+            }
+            .eraseToAnyPublisher()
+    }
+
+    private static func createSimulator(name: String) -> AnyPublisher<Void, Error> {
+        Process.run(.xcrun, arguments: ["simctl", "create", name, name])
+            .message("     📲 \(name) simulator is not available. Create it now")
+            .tryMap { output, process in
+                guard process.terminationStatus == 0 else {
+                    throw ExecutionError.commandFailed(
+                        "xcrun simctl create failed for the device \(name)"
+                    )
                 }
-
-                continue
             }
-
-            print("     📲 \(device.simulatorName) simulator is not available. Create it now")
-
-            guard shell(
-                command: .xcrun,
-                arguments: ["simctl", "create", device.simulatorName, device.simulatorName]
-            ).status == 0
-            else {
-                throw ExecutionError.commandFailed(
-                    "xcrun simctl create failed for the device \(device.simulatorName)"
-                )
-            }
-        }
+            .eraseToAnyPublisher()
     }
 
     private static func generateScreenshots(project: Project, planName: String) throws {
@@ -272,15 +295,18 @@ public enum MarketingScreenshots {
         print("              📸 \(normalizedTestName) is available here: \(path)")
     }
 
-    private static func shutdownSimulator(named name: String) throws {
-        print("     📱💤 Shutting down the device: \(name)")
-        let shutdown = shell(command: .xcrun, arguments: ["simctl", "shutdown", name])
-        guard shutdown.status == 0 else {
-            throw ExecutionError.commandFailed("""
-            xcrun simctl shutdown \(name) failed with errors:
-            \(shutdown.output ?? "Output unavailable")
-            """)
-        }
+    private static func shutdownSimulator(named name: String) -> AnyPublisher<Void, Error> {
+        Process.run(.xcrun, arguments: ["simctl", "shutdown", name])
+            .message("     📱💤 Shutting down the device: \(name)")
+            .tryMap { output, process in
+                guard process.terminationStatus == 0 else {
+                    throw ExecutionError.commandFailed("""
+                    xcrun simctl shutdown \(name) failed with errors:
+                    \(output ?? "Output unavailable")
+                    """)
+                }
+            }
+            .eraseToAnyPublisher()
     }
 
     // Code available here: https://gist.github.com/pejalo/671dd2f67e3877b18c38c749742350ca

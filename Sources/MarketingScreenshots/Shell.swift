@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 
 let currentDirectoryPath = FileManager.default.currentDirectoryPath
@@ -29,4 +30,40 @@ func shell(command: ShellCommand, arguments: [String] = []) -> (output: String?,
     let output = String(data: data, encoding: .utf8)
     task.waitUntilExit()
     return (output, task.terminationStatus)
+}
+
+extension Process {
+    static func run(
+        _ shellCommand: ShellCommand,
+        arguments: [String] = []
+    ) -> Future<(String?, Process), Error> {
+        return Future { promise in
+            do {
+                let process = Process()
+                let pipe = Pipe()
+                process.standardOutput = pipe
+                process.standardError = pipe
+
+                process.qualityOfService = .userInitiated
+
+                process.terminationHandler = { process in
+                    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                    let output = String(data: data, encoding: .utf8)
+                    promise(.success((output, process)))
+                }
+
+                try process.run()
+            } catch {
+                promise(.failure(error))
+            }
+        }
+    }
+}
+
+// TODO: Move to its own file
+
+extension Publisher {
+    func message(_ message: String) -> Publishers.HandleEvents<Self> {
+        handleEvents(receiveSubscription: { _ in Swift.print(message) })
+    }
 }
