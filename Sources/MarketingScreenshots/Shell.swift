@@ -1,8 +1,6 @@
 import Combine
 import Foundation
 
-let currentDirectoryPath = FileManager.default.currentDirectoryPath
-
 enum ShellCommand: String {
     case xcodebuild = "/usr/bin/xcodebuild"
     case plutil = "/usr/bin/plutil"
@@ -18,7 +16,6 @@ enum ShellCommand: String {
 func shell(command: ShellCommand, arguments: [String] = []) -> (output: String?, status: Int32) {
     let task = Process()
     task.executableURL = command.url
-    task.currentDirectoryPath = currentDirectoryPath
     task.arguments = arguments
     task.qualityOfService = .userInteractive
 
@@ -36,15 +33,31 @@ extension Process {
     static func run(
         _ shellCommand: ShellCommand,
         arguments: [String] = []
-    ) -> Future<(String?, Process), Error> {
-        return Future { promise in
-            do {
+    ) -> Deferred<Future<(String?, Process), Error>> {
+        Deferred {
+            Future { promise in
                 let process = Process()
+                process.executableURL = shellCommand.url
+                process.arguments = arguments
+                process.qualityOfService = .userInitiated
+
                 let pipe = Pipe()
                 process.standardOutput = pipe
                 process.standardError = pipe
 
-                process.qualityOfService = .userInitiated
+                #if DEBUG
+                pipe.fileHandleForReading.readabilityHandler = { pipe in
+                    guard let output = String(data: pipe.availableData, encoding: .utf8) else {
+                        print("Unreadable debug data")
+                        return
+                    }
+                    guard
+                        !output.isEmpty,
+                        !output.starts(with: "output")
+                    else { return }
+                    print(output)
+                }
+                #endif
 
                 process.terminationHandler = { process in
                     let data = pipe.fileHandleForReading.readDataToEndOfFile()
@@ -52,18 +65,12 @@ extension Process {
                     promise(.success((output, process)))
                 }
 
-                try process.run()
-            } catch {
-                promise(.failure(error))
+                do {
+                    try process.run()
+                } catch {
+                    promise(.failure(error))
+                }
             }
         }
-    }
-}
-
-// TODO: Move to its own file
-
-extension Publisher {
-    func message(_ message: String) -> Publishers.HandleEvents<Self> {
-        handleEvents(receiveSubscription: { _ in Swift.print(message) })
     }
 }

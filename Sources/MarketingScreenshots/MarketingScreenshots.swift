@@ -4,6 +4,7 @@ import XCResultKit
 import XMLCoder
 
 public enum MarketingScreenshots {
+    private static let currentDirectoryPath = FileManager.default.currentDirectoryPath
     private static let derivedDataPath = "\(currentDirectoryPath)/.DerivedDataMarketing"
     private static let exportFolder = "\(currentDirectoryPath)/.ExportedScreenshots"
 
@@ -14,24 +15,33 @@ public enum MarketingScreenshots {
         projectName: String,
         planName: String = "Marketing"
     ) throws {
+        let devices = [devices.first!]
         let dispatchGroup = DispatchGroup()
 
         dispatchGroup.enter()
         cancellable = prepare()
-//            .map { checkSimulatorAvailability(devices: devices) }
+            .flatMap { checkSimulatorAvailability(devices: devices) }
+            .flatMap { _ -> AnyPublisher<Void, Error> in
+                do {
+                    return try generateScreenshots(
+                        project: .iOS(projectName, devices),
+                        planName: planName
+                    )
+                } catch {
+                    return Fail(error: error).eraseToAnyPublisher()
+                }
+            }
+            .tryMap { try openScreenshotsFolder() }
             .sink { completion in
                 switch completion {
                 case .finished: break
                 case let .failure(error):
                     print("Process failed with error: \(error)")
-                    dispatchGroup.leave()
                 }
+                dispatchGroup.leave()
             } receiveValue: { _ in
                 print("...")
-                dispatchGroup.leave()
             }
-//        try generateScreenshots(project: .iOS(projectName, devices), planName: planName)
-//        try openScreenshotsFolder()
 
         dispatchGroup.wait()
     }
@@ -40,14 +50,34 @@ public enum MarketingScreenshots {
         projectName: String,
         planName: String = "Marketing"
     ) throws {
-//        try prepare()
-//        try generateScreenshots(project: .macOS(projectName), planName: planName)
-//        try openScreenshotsFolder()
+        let dispatchGroup = DispatchGroup()
+
+        dispatchGroup.enter()
+        cancellable = prepare()
+            .flatMap { _ -> AnyPublisher<Void, Error> in
+                do {
+                    return try generateScreenshots(project: .macOS(projectName), planName: planName)
+                } catch {
+                    return Fail(error: error).eraseToAnyPublisher()
+                }
+            }
+            .tryMap { try openScreenshotsFolder() }
+            .sink { completion in
+                switch completion {
+                case .finished: break
+                case let .failure(error):
+                    print("Process failed with error: \(error)")
+                }
+                dispatchGroup.leave()
+            } receiveValue: { _ in
+                print("...")
+            }
+        dispatchGroup.wait()
     }
 
     private static func prepare() -> AnyPublisher<Void, Error> {
-        Process.run(.mkdir, arguments: ["-p", exportFolder])
-            .message("🗂 Working directory: \(currentDirectoryPath)")
+        print("🗂 Working directory: \(currentDirectoryPath)")
+        return Process.run(.mkdir, arguments: ["-p", exportFolder])
             .tryMap { output, process in
                 guard process.terminationStatus == 0 else {
                     throw ExecutionError.commandFailed("mkdir failed to create the folder \(exportFolder)")
@@ -67,7 +97,10 @@ public enum MarketingScreenshots {
 
     private static func checkSimulatorAvailability(devices: [Device]) -> AnyPublisher<Void, Error> {
         Process.run(.xcrun, arguments: ["simctl", "list", "-j", "devices", "available"])
-            .message("🤖 Check simulators available and if they are ready to be used for screenshots")
+            .map { output -> (String?, Process) in
+                print("🤖 Check simulators available and if they are ready to be used for screenshots")
+                return output
+            }
             .tryCompactMap { output, process in
                 guard process.terminationStatus == 0 else {
                     throw ExecutionError.commandFailed(
@@ -97,7 +130,7 @@ public enum MarketingScreenshots {
                         if simulator?.state != .shutdown {
                             return shutdownSimulator(named: device.simulatorName)
                         }
-                        return Future { $0(.success(())) }.eraseToAnyPublisher()
+                        return Just(()).mapError { $0 }.eraseToAnyPublisher()
                     }
                     return createSimulator(name: device.simulatorName)
                 })
@@ -108,7 +141,10 @@ public enum MarketingScreenshots {
 
     private static func createSimulator(name: String) -> AnyPublisher<Void, Error> {
         Process.run(.xcrun, arguments: ["simctl", "create", name, name])
-            .message("     📲 \(name) simulator is not available. Create it now")
+            .map { output -> (String?, Process) in
+                print("     📲 \(name) simulator is not available. Create it now")
+                return output
+            }
             .tryMap { output, process in
                 guard process.terminationStatus == 0 else {
                     throw ExecutionError.commandFailed(
@@ -119,15 +155,23 @@ public enum MarketingScreenshots {
             .eraseToAnyPublisher()
     }
 
-    private static func generateScreenshots(project: Project, planName: String) throws {
+    private static func generateScreenshots(
+        project: Project,
+        planName: String
+    ) throws -> AnyPublisher<Void, Error> {
         print("📺 Starting generating Marketing screenshots...")
         switch project {
         case let .iOS(projectName, devices):
-            for device in devices {
-                try iOSScreenshots(for: device, projectName: projectName, planName: planName)
-            }
+            return Publishers.MergeMany(try devices.map { device in
+                return try iOSScreenshots(
+                    for: device,
+                    projectName: projectName,
+                    planName: planName
+                )
+            })
+            .eraseToAnyPublisher()
         case let .macOS(projectName):
-            try macOSScreenshots(projectName: projectName, planName: planName)
+            return try macOSScreenshots(projectName: projectName, planName: planName)
         }
     }
 
@@ -135,45 +179,56 @@ public enum MarketingScreenshots {
         for device: Device,
         projectName: String,
         planName: String
-    ) throws {
+    ) throws -> AnyPublisher<Void, Error> {
         try cleanUpDerivedDataIfNeeded()
         print("📱 Currently running on Simulator named: \(device.simulatorName) for screenshot size \(device.screenDescription)")
         print("     📲 Booting the device: \(device.simulatorName)")
-        let boot = shell(command: .xcrun, arguments: ["simctl", "boot", device.simulatorName])
-        guard boot.status == 0 else {
-            throw ExecutionError.commandFailed("""
-            xcrun simctl boot \(device.simulatorName) failed with errors:
-            \(boot.output ?? "Output unavailable")
-            """)
-        }
-
-        print("     👷‍♀️ Generation of screenshots for \(device.simulatorName) via test plan in progress")
-        print("     🧵 This will run on thread \(Thread.current)")
-        print("     🐢 This usually takes some time and some resources...")
-        print("     🩺 Let's measure the RAM consumption before running the test")
-        printMemoryUsage()
-
-        let marketingTestPlan = shell(command: .xcodebuild, arguments: [
-            "test",
-            "-scheme", projectName,
-            "-destination", "platform=iOS Simulator,name=\(device.simulatorName)",
-            "-derivedDataPath", derivedDataPath,
-            "-testPlan", planName,
-        ])
-
-        print("     🩺 Let's measure the RAM consumption after running the test")
-        printMemoryUsage()
-
-        try extractScreenshots(
-            from: marketingTestPlan,
-            name: device.simulatorName,
-            screenDescription: device.screenDescription
-        )
-
-        try shutdownSimulator(named: device.simulatorName)
+        return Process.run(.xcrun, arguments: ["simctl", "boot", device.simulatorName])
+            .tryMap { output, process in
+                guard process.terminationStatus == 0 else {
+                    throw ExecutionError.commandFailed("""
+                    xcrun simctl boot \(device.simulatorName) failed with errors:
+                    \(output ?? "Output unavailable")
+                    """)
+                }
+            }
+            .map {
+                print("     👷‍♀️ Generation of screenshots for \(device.simulatorName) via test plan in progress")
+                print("     🧵 This will run on thread \(Thread.current)")
+                print("     🐢 This usually takes some time and some resources...")
+                print("     🩺 Let's measure the RAM consumption before running the test")
+                printMemoryUsage()
+                return $0
+            }
+            .flatMap {
+                Process.run(.xcodebuild, arguments: [
+                    "test",
+                    "-scheme", projectName,
+                    "-destination", "platform=iOS Simulator,name=\(device.simulatorName)",
+                    "-derivedDataPath", derivedDataPath,
+                    "-testPlan", planName,
+                ])
+            }
+            .map {
+                print("     🩺 Let's measure the RAM consumption after running the test")
+                printMemoryUsage()
+                return $0
+            }
+            .tryMap {
+                try extractScreenshots(
+                    from: $0,
+                    name: device.simulatorName,
+                    screenDescription: device.screenDescription
+                )
+            }
+            .flatMap { shutdownSimulator(named: device.simulatorName) }
+            .eraseToAnyPublisher()
     }
 
-    private static func macOSScreenshots(projectName: String, planName: String) throws {
+    private static func macOSScreenshots(
+        projectName: String,
+        planName: String
+    ) throws -> AnyPublisher<Void, Error> {
         try cleanUpDerivedDataIfNeeded()
         print("💻 Currently running on this mac")
         print("     👷‍♀️ Generation of screenshots for mac via test plan in progress")
@@ -181,22 +236,26 @@ public enum MarketingScreenshots {
         print("     🩺 Let's measure the RAM consumption before running the test")
         printMemoryUsage()
 
-        let marketingTestPlan = shell(command: .xcodebuild, arguments: [
+        return Process.run(.xcodebuild, arguments: [
             "test",
             "-scheme", projectName,
             "-derivedDataPath", derivedDataPath,
             "-testPlan", planName,
             "CODE_SIGNING_ALLOWED=NO",
         ])
-
-        print("     🩺 Let's measure the RAM consumption after running the test")
-        printMemoryUsage()
-
-        try extractScreenshots(
-            from: marketingTestPlan,
-            name: "mac",
-            screenDescription: "mac screen"
-        )
+        .map {
+            print("     🩺 Let's measure the RAM consumption after running the test")
+            printMemoryUsage()
+            return $0
+        }
+        .tryMap {
+            try extractScreenshots(
+                from: $0,
+                name: "mac",
+                screenDescription: "mac screen"
+            )
+        }
+        .eraseToAnyPublisher()
     }
 
     private static func cleanUpDerivedDataIfNeeded() throws {
@@ -207,11 +266,11 @@ public enum MarketingScreenshots {
     }
 
     private static func extractScreenshots(
-        from marketingTestPlan: (output: String?, status: Int32),
+        from marketingTestPlan: (output: String?, process: Process),
         name: String,
         screenDescription: String
     ) throws {
-        guard marketingTestPlan.status == 0 else {
+        guard marketingTestPlan.process.terminationStatus == 0 else {
             marketingTestPlan.output.map {
                 let lines = $0.split(separator: "\n")
                 let twoFirstLines = lines.prefix(2)
@@ -296,8 +355,8 @@ public enum MarketingScreenshots {
     }
 
     private static func shutdownSimulator(named name: String) -> AnyPublisher<Void, Error> {
-        Process.run(.xcrun, arguments: ["simctl", "shutdown", name])
-            .message("     📱💤 Shutting down the device: \(name)")
+        print("     📱💤 Shutting down the device: \(name)")
+        return Process.run(.xcrun, arguments: ["simctl", "shutdown", name])
             .tryMap { output, process in
                 guard process.terminationStatus == 0 else {
                     throw ExecutionError.commandFailed("""
