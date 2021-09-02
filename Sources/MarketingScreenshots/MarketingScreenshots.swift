@@ -14,8 +14,6 @@ public enum MarketingScreenshots {
         projectName: String,
         planName: String = "Marketing"
     ) throws {
-        let devices = [devices.first!]
-
         try prepare()
         try checkSimulatorAvailability(devices: devices)
         try generateScreenshots(project: .iOS(projectName, devices), planName: planName)
@@ -26,7 +24,6 @@ public enum MarketingScreenshots {
         projectName: String,
         planName: String = "Marketing"
     ) throws {
-        return
         try prepare()
         try generateScreenshots(project: .macOS(projectName), planName: planName)
         try shellOut(to: .openFile(at: exportFolder))
@@ -96,12 +93,14 @@ public enum MarketingScreenshots {
         print("     🐢 This usually takes some time and some resources...")
         print("     🩺 Let's measure the RAM consumption before running the test")
         printMemoryUsage()
-        try shellOut(to: .iOSTest(
-            scheme: projectName,
-            simulatorName: device.simulatorName,
-            derivedDataPath: derivedDataPath,
-            testPlan: planName
-        ))
+        try shellOut(
+            to: .iOSTest(
+                scheme: projectName,
+                simulatorName: device.simulatorName,
+                derivedDataPath: derivedDataPath,
+                testPlan: planName
+            )
+        )
         print("     🩺 Let's measure the RAM consumption after running the test")
         printMemoryUsage()
         try extractScreenshots(
