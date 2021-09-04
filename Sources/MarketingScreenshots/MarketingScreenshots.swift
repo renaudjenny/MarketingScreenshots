@@ -93,6 +93,7 @@ public enum MarketingScreenshots {
         print("     🐢 This usually takes some time and some resources...")
         print("     🩺 Let's measure the RAM consumption before running the test")
         printMemoryUsage()
+
         try shellOut(
             to: .iOSTest(
                 scheme: projectName,
@@ -100,7 +101,8 @@ public enum MarketingScreenshots {
                 derivedDataPath: derivedDataPath,
                 testPlan: planName
             )
-        )
+        ) { print($0) }
+
         print("     🩺 Let's measure the RAM consumption after running the test")
         printMemoryUsage()
         try extractScreenshots(
