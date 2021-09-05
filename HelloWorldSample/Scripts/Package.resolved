@@ -2,15 +2,6 @@
   "object": {
     "pins": [
       {
-        "package": "MarketingScreenshots",
-        "repositoryURL": "https://github.com/renaudjenny/MarketingScreenshots",
-        "state": {
-          "branch": null,
-          "revision": "676064a512c60e3bdb0aa00e0d315cf3e8bd8972",
-          "version": "0.0.7"
-        }
-      },
-      {
         "package": "ShellOut",
         "repositoryURL": "https://github.com/JohnSundell/ShellOut",
         "state": {

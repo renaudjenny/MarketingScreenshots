@@ -46,8 +46,6 @@ extension ShellOutCommand {
     errorHandle: FileHandle? = nil,
     liveOutput: @escaping (String) -> Void
 ) throws -> String {
-    let outputQueue = DispatchQueue(label: "bash-live-output-queue")
-
     let temporaryOutputURL = FileManager.default.temporaryDirectory.appendingPathComponent(
         "shellout_live_output.temp"
     )
@@ -55,43 +53,36 @@ extension ShellOutCommand {
         try FileManager.default.removeItem(at: temporaryOutputURL)
     }
     try Data().write(to: temporaryOutputURL)
-    let outputHandle = try FileHandle(forUpdating: temporaryOutputURL)
+    let outputHandle = try FileHandle(forWritingTo: temporaryOutputURL)
 
     #if DEBUG
     print("To read live output file directly in a terminal")
     print("tail -f \(temporaryOutputURL.path)")
     #endif
 
-    outputHandle.readabilityHandler = { handler in
-        do {
-            guard let data = try handler.readToEnd() else {
-                print("data nil")
-                return
+    outputHandle.waitForDataInBackgroundAndNotify()
+    let subscription = NotificationCenter.default.publisher(for: NSNotification.Name.NSFileHandleDataAvailable)
+        .tryReduce("", { alreadyDisplayedContent, _ in
+            let content = try String(contentsOf: temporaryOutputURL)
+            print(content[alreadyDisplayedContent.endIndex...])
+
+            outputHandle.waitForDataInBackgroundAndNotify()
+            return content
+        })
+        .sink(receiveCompletion: {
+            switch $0 {
+            case let .failure(error):
+                print("Content of live output cannot be read: \(error)")
+            case .finished: break
             }
-            outputQueue.async {
-                liveOutput(data.shellOutput())
-            }
-        } catch {
-            print("Error happened. Cannot readToEnd: \(error)")
-        }
-    }
+        }, receiveValue: { _ in })
 
-//    errorPipe.fileHandleForReading.readabilityHandler = { handler in
-//        let data = handler.availableData
-//        outputQueue.async {
-//            errorData.append(data)
-//            errorHandle?.write(data)
-//        }
-//    }
+    let output = try shellOut(to: command, at: path, process: process, outputHandle: outputHandle, errorHandle: errorHandle)
+    subscription.cancel()
 
+    try FileManager.default.removeItem(at: temporaryOutputURL)
 
-    return try outputQueue.sync {
-        let output = try shellOut(to: command, at: path, process: process, outputHandle: outputHandle, errorHandle: errorHandle)
-
-        try FileManager.default.removeItem(at: temporaryOutputURL)
-
-        return output
-    }
+    return output
 }
 
 private extension Data {

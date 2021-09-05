@@ -84,7 +84,7 @@ public enum MarketingScreenshots {
         projectName: String,
         planName: String
     ) throws {
-        try cleanUpDerivedDataIfNeeded()
+//        try cleanUpDerivedDataIfNeeded()
         print("📱 Currently running on Simulator named: \(device.simulatorName) for screenshot size \(device.screenDescription)")
         print("     📲 Booting the device: \(device.simulatorName)")
         try shellOut(to: .bootSimulator(named: device.simulatorName))
@@ -113,7 +113,7 @@ public enum MarketingScreenshots {
     }
 
     private static func macOSScreenshots(projectName: String, planName: String) throws {
-        try cleanUpDerivedDataIfNeeded()
+//        try cleanUpDerivedDataIfNeeded()
         print("💻 Currently running on this mac")
         print("     👷‍♀️ Generation of screenshots for mac via test plan in progress")
         print("     🐢 This usually takes some time and some resources...")

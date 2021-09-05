@@ -16,4 +16,4 @@ try MarketingScreenshots.iOS(
     projectName: "HelloWorldSample (iOS)"
 )
 
-try MarketingScreenshots.macOS(projectName: "HelloWorldSample (macOS)")
+//try MarketingScreenshots.macOS(projectName: "HelloWorldSample (macOS)")
