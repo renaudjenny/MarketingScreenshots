@@ -153,6 +153,13 @@ Choose your project directory, basically where your `YourProject.xcproj` is.
 
 Now you should be able to run the Script and visualise some screenshots if your test plan is well made.
 
+You can also run it with the command line, which is useful as you don't have to open Xcode at all.
+
+```bash
+$ cd YourProject
+$ swift run --package-path Scripts
+```
+
 ## Github Action
 
 TODO 🛠

@@ -13,7 +13,7 @@ try MarketingScreenshots.iOS(
 //        .iPadPro_110_1st_Generation,
 //        .iPadPro_129_4th_Generation,
     ],
-    projectName: "MemoArt (iOS)"
+    projectName: "HelloWorldSample (iOS)"
 )
 
-try MarketingScreenshots.macOS(projectName: "MemoArt (macOS)")
+try MarketingScreenshots.macOS(projectName: "HelloWorldSample (macOS)")
