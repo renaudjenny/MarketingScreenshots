@@ -1,0 +1,36 @@
+{
+  "configurations" : [
+    {
+      "id" : "F869AA44-3D5C-48F4-9C12-1892FC59B1F8",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : false,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:HelloWorldSample.xcodeproj",
+      "identifier" : "4C6C92E226E3DC86004DC0DB",
+      "name" : "HelloWorldSample (iOS)"
+    }
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:HelloWorldSample.xcodeproj",
+        "identifier" : "4C6C930426E3E8BD004DC0DB",
+        "name" : "UITests iOS"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:HelloWorldSample.xcodeproj",
+        "identifier" : "4C6C931226E3E911004DC0DB",
+        "name" : "UITests macOS"
+      }
+    }
+  ],
+  "version" : 1
+}
