@@ -70,7 +70,88 @@ TODO 🛠
 
 ## Write your script
 
-TODO 🛠
+The easiest way to add the script to generate marketing screenshots automatically is to create a folder `Scripts` into your project and then create a Swift Package of type `executable` in it.
+
+```bash
+$ cd YourProject
+$ mkdir Scripts
+$ cd Scripts
+$ swift package init --type=executable
+```
+
+To edit your fresh executable, the easiest way is to open the project with Xcode with this command:
+```bash
+$ open Package.swift
+```
+
+You can now edit the `Package.swift` file and add the `MarketingScreenshots` library to it. Also, don't forget to add the dependency to the **Scripts** target.
+
+You also have to set the platforms to `.macOS(.v11)` because the library is supposed to only work for this target. If you skip this, you will get an error like
+* `The package product 'MarketingScreenshots' requires minimum platform version 11.0 for the macOS platform, but this target supports 10.15`
+* Or an other more generic error.
+
+Your Package.swift should look like this:
+
+```swift
+// swift-tools-version:5.3
+// The swift-tools-version declares the minimum version of Swift required to build this package.
+
+import PackageDescription
+
+let package = Package(
+    name: "Scripts",
+    platforms: [.macOS(.v11)],
+    dependencies: [
+        .package(url: "https://github.com/renaudjenny/MarketingScreenshots", from: "0.0.6"),
+    ],
+    targets: [
+        .target(
+            name: "Scripts",
+            dependencies: ["MarketingScreenshots"]),
+        .testTarget(
+            name: "ScriptsTests",
+            dependencies: ["Scripts"]),
+    ]
+)
+```
+
+You can now edit the file `Sources/Scripts/main.swift` to add what's needed for your project
+
+```swift
+import MarketingScreenshots
+
+try MarketingScreenshots.iOS(
+    devices: [
+        .iPhoneSE_1st_Generation,
+        .iPhone8Plus,
+        .iPhoneSE_2nd_Generation,
+        .iPhone12Pro,
+        .iPhone12ProMax,
+
+        .iPadPro_97,
+        .iPadPro_129_2nd_Generation,
+        .iPadPro_110_1st_Generation,
+        .iPadPro_129_4th_Generation,
+    ],
+    projectName: "HelloWorldSample (iOS)"
+)
+
+try MarketingScreenshots.macOS(projectName: "HelloWorldSample (macOS)")
+```
+
+What you need to focus especially is what you put in the `projectName`. It should perfectly match the target name of what you're going to use for tests. In my case, that's `HelloWorldSample (iOS)` (notice the `(iOS)`), do not forget any space or parenthesis if your target name has some. Also, not that I slightly changed the name for the macOS target. And obviously, the `macOS` `projectName` should also match the target name.
+
+You should be able to build the package with `CMD+B` but you won't be able to run it yet without error. The working directory has to be changed for this script to work.
+
+To edit the working directory, you need to edit the scheme.
+![Edit Scripts scheme](assets/scripts_edit_scheme.png)
+
+Select `Run` in the first column, select Options tab, Check "Use custom working directory" and click on the "Choose a New Location" icon.
+![Change working directory](assets/scripts_change_working_directory.png)
+
+Choose your project directory, basically where your `YourProject.xcproj` is.
+
+Now you should be able to run the Script and visualise some screenshots if your test plan is well made.
 
 ## Github Action
 
