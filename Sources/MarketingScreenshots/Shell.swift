@@ -55,16 +55,14 @@ extension ShellOutCommand {
     try Data().write(to: temporaryOutputURL)
     let outputHandle = try FileHandle(forWritingTo: temporaryOutputURL)
 
-    #if DEBUG
-    print("To read live output file directly in a terminal")
-    print("tail -f \(temporaryOutputURL.path)")
-    #endif
+//    print("To read live output file directly in a terminal")
+//    print("tail -f \(temporaryOutputURL.path)")
 
     outputHandle.waitForDataInBackgroundAndNotify()
     let subscription = NotificationCenter.default.publisher(for: NSNotification.Name.NSFileHandleDataAvailable)
         .tryReduce("", { alreadyDisplayedContent, _ in
             let content = try String(contentsOf: temporaryOutputURL)
-            print(content[alreadyDisplayedContent.endIndex...])
+            liveOutput(String(content[alreadyDisplayedContent.endIndex...]))
 
             outputHandle.waitForDataInBackgroundAndNotify()
             return content
