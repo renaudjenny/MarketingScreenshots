@@ -84,7 +84,6 @@ public enum MarketingScreenshots {
         projectName: String,
         planName: String
     ) throws {
-//        try cleanUpDerivedDataIfNeeded()
         print("📱 Currently running on Simulator named: \(device.simulatorName) for screenshot size \(device.screenDescription)")
         print("     📲 Booting the device: \(device.simulatorName)")
         try shellOut(to: .bootSimulator(named: device.simulatorName))
@@ -94,7 +93,7 @@ public enum MarketingScreenshots {
         print("     🩺 Let's measure the RAM consumption before running the test")
         printMemoryUsage()
 
-        try iOSTest(for: device, projectName: projectName, planName: planName, retry: 3)
+        try iOSTest(for: device, projectName: projectName, planName: planName, retry: 5)
 
         print("     🩺 Let's measure the RAM consumption after running the test")
         printMemoryUsage()
@@ -133,7 +132,6 @@ public enum MarketingScreenshots {
     }
 
     private static func macOSScreenshots(projectName: String, planName: String) throws {
-//        try cleanUpDerivedDataIfNeeded()
         print("💻 Currently running on this mac")
         print("     👷‍♀️ Generation of screenshots for mac via test plan in progress")
         print("     🐢 This usually takes some time and some resources...")
@@ -177,7 +175,8 @@ public enum MarketingScreenshots {
         else {
             throw ExecutionError.uiTestFailed("No TestPlan found!")
         }
-        for summary in result.getTestPlanRunSummaries(id: testPlanRunSummariesId)?.summaries ?? [] {
+        let summaries = result.getTestPlanRunSummaries(id: testPlanRunSummariesId)?.summaries ?? []
+        for summary in summaries {
             print("         ⛏ extraction for the configuration \(summary.name) in progress")
             for test in summary.screenshotTests ?? [] {
                 try exportScreenshot(

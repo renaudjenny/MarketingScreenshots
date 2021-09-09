@@ -4,7 +4,7 @@ struct LogStoreManifest: Decodable {
     var dict: RootDict
 
     var lastXCResultFileName: String {
-        dict.dict.dicts.last!.strings.first(where: { $0.hasSuffix(".xcresult") })!
+        dict.dict.dicts.flatMap(\.strings).filter { $0.hasSuffix(".xcresult") }.sorted().last!
     }
 }
 
