@@ -93,37 +93,7 @@ public enum MarketingScreenshots {
         print("     🩺 Let's measure the RAM consumption before running the test")
         printMemoryUsage()
 
-        let group = DispatchGroup()
-        group.enter()
-        let iOSTesta = Just(())
-            .tryMap {
-                try shellOut(
-                    to: .iOSTest(
-                        scheme: projectName,
-                        simulatorName: device.simulatorName,
-                        derivedDataPath: derivedDataPath,
-                        testPlan: planName
-                    )
-                ) { print($0) }
-            }
-            .mapError { error -> Error in
-                print("     ❌ Test failed with error, let's retry")
-                print(error)
-                return error
-            }
-            .retry(5)
-            .sink(receiveCompletion: {
-                switch $0 {
-                case .failure:
-                    print("#### Failure ###")
-                case .finished:
-                    print("#### Finished ###")
-                    group.leave()
-                }
-            }, receiveValue: { })
-
-        group.wait()
-        iOSTesta.cancel()
+        try iOSTest(for: device, projectName: projectName, planName: planName)
 
         print("     🩺 Let's measure the RAM consumption after running the test")
         printMemoryUsage()
@@ -132,6 +102,39 @@ public enum MarketingScreenshots {
             screenDescription: device.screenDescription
         )
         try shellOut(to: .shutdownSimulator(named: device.simulatorName))
+    }
+
+    private static func iOSTest(
+        for device: Device,
+        projectName: String,
+        planName: String,
+        retry: Int = 5
+    ) throws {
+        do {
+//            try shellOut(
+//                to: .iOSTest(
+//                    scheme: projectName,
+//                    simulatorName: device.simulatorName,
+//                    derivedDataPath: derivedDataPath,
+//                    testPlan: planName
+//                )
+//            ) { print($0) }
+            try shellOut(
+                to: .iOSTest(
+                    scheme: projectName,
+                    simulatorName: device.simulatorName,
+                    derivedDataPath: derivedDataPath,
+                    testPlan: planName
+                )
+            )
+        } catch {
+            guard retry > 0 else {
+                print("     ❌ Failure. Too many retry")
+                return
+            }
+            print("     ❌ Fail. Let's retry. \(retry - 1) attempts left.")
+            try iOSTest(for: device, projectName: projectName, planName: planName, retry: retry - 1)
+        }
     }
 
     private static func macOSScreenshots(projectName: String, planName: String) throws {
