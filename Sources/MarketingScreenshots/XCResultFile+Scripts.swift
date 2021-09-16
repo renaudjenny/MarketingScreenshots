@@ -6,28 +6,13 @@ extension XCResultFile {
     }
 
     func screenshotAttachmentPayloadId(summaryId: String) -> String? {
-        print("###")
-        print(getActionTestSummary(id: summaryId))
-        print("#1")
-        print(getActionTestSummary(id: summaryId)?.activitySummaries.first(where: {
-            $0.activityType == "com.apple.dt.xctest.activity-type.attachmentContainer"
-        }))
-        print("#2")
-        print(getActionTestSummary(id: summaryId)?.activitySummaries.first(where: {
-            $0.activityType == "com.apple.dt.xctest.activity-type.attachmentContainer"
-        })?.attachments.first)
-        print("#3")
-        print(getActionTestSummary(id: summaryId)?.activitySummaries.first(where: {
-            $0.activityType == "com.apple.dt.xctest.activity-type.attachmentContainer"
-        })?.attachments.first?.payloadRef?.id)
-        print("###")
-
-        return getActionTestSummary(id: summaryId)?
-            .activitySummaries.first(where: {
+        getActionTestSummary(id: summaryId)?
+            .activitySummaries.filter {
                 $0.activityType == "com.apple.dt.xctest.activity-type.attachmentContainer"
-            })?
-            .attachments.first?
-            .payloadRef?.id
+            }
+            .flatMap { $0.attachments }
+            .compactMap(\.payloadRef)
+            .first?.id
     }
 }
 

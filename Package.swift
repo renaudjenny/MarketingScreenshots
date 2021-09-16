@@ -9,7 +9,8 @@ let package = Package(
     products: [
         .library(
             name: "MarketingScreenshots",
-            targets: ["MarketingScreenshots"]),
+            targets: ["MarketingScreenshots"]
+        ),
     ],
     dependencies: [
         .package(url: "https://github.com/MaxDesiatov/XMLCoder.git", from: "0.13.0"),
@@ -19,9 +20,13 @@ let package = Package(
     targets: [
         .target(
             name: "MarketingScreenshots",
-            dependencies: ["XCResultKit", "XMLCoder", "ShellOut"]),
+            dependencies: ["XCResultKit", "XMLCoder", "ShellOut"],
+            exclude: ["HelloWorldSample"]
+        ),
         .testTarget(
             name: "MarketingScreenshotsTests",
-            dependencies: ["MarketingScreenshots"]),
+            dependencies: ["MarketingScreenshots"],
+            exclude: ["HelloWorldSample"]
+        ),
     ]
 )

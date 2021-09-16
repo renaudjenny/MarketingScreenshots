@@ -93,48 +93,37 @@ public enum MarketingScreenshots {
         print("     🩺 Let's measure the RAM consumption before running the test")
         printMemoryUsage()
 
-        try iOSTest(for: device, projectName: projectName, planName: planName)
-
-        print("     🩺 Let's measure the RAM consumption after running the test")
-        printMemoryUsage()
-        try extractScreenshots(
-            name: device.simulatorName,
-            screenDescription: device.screenDescription
-        )
-        try shellOut(to: .shutdownSimulator(named: device.simulatorName))
-    }
-
-    private static func iOSTest(
-        for device: Device,
-        projectName: String,
-        planName: String,
-        retry: Int = 5
-    ) throws {
-        do {
-//            try shellOut(
-//                to: .iOSTest(
-//                    scheme: projectName,
-//                    simulatorName: device.simulatorName,
-//                    derivedDataPath: derivedDataPath,
-//                    testPlan: planName
-//                )
-//            ) { print($0) }
-            try shellOut(
-                to: .iOSTest(
-                    scheme: projectName,
-                    simulatorName: device.simulatorName,
-                    derivedDataPath: derivedDataPath,
-                    testPlan: planName
-                )
-            )
-        } catch {
+        var retry = 5
+        while true {
             guard retry > 0 else {
-                print("     ❌ Failure. Too many retry")
-                return
+                print("     ❌ Failure. Too many retries")
+                break
             }
-            print("     ❌ Fail. Let's retry. \(retry - 1) attempts left.")
-            try iOSTest(for: device, projectName: projectName, planName: planName, retry: retry - 1)
+
+            do {
+                try shellOut(
+                    to: .iOSTest(
+                        scheme: projectName,
+                        simulatorName: device.simulatorName,
+                        derivedDataPath: derivedDataPath,
+                        testPlan: planName
+                    )
+                ) { print($0) }
+
+                print("     🩺 Let's measure the RAM consumption after running the test")
+                printMemoryUsage()
+
+                try extractScreenshots(
+                    name: device.simulatorName,
+                    screenDescription: device.screenDescription
+                )
+                retry = 0
+            } catch {
+                print("     ❌ Failed. Let's retry. \(retry - 1) attempts left.")
+                retry -= 1
+            }
         }
+        try shellOut(to: .shutdownSimulator(named: device.simulatorName))
     }
 
     private static func macOSScreenshots(projectName: String, planName: String) throws {
