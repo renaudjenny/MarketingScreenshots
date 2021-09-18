@@ -97,6 +97,7 @@ public enum MarketingScreenshots {
         while true {
             guard retry > 0 else {
                 print("     ❌ Failure. Too many retries")
+                // TODO: Save this to an end of the script sum up?
                 break
             }
 
@@ -117,7 +118,7 @@ public enum MarketingScreenshots {
                     name: device.simulatorName,
                     screenDescription: device.screenDescription
                 )
-                retry = 0
+                break
             } catch {
                 print("     ❌ Failed. Let's retry. \(retry - 1) attempts left.")
                 retry -= 1
