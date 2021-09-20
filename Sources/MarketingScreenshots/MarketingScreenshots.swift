@@ -14,6 +14,8 @@ public enum MarketingScreenshots {
         projectName: String,
         planName: String = "Marketing"
     ) throws {
+        print("📱 Device types available on this machine")
+        print(try shellOut(to: .availableDeviceTypes))
         try prepare()
         try checkSimulatorAvailability(devices: devices)
         try generateScreenshots(project: .iOS(projectName, devices), planName: planName)
@@ -39,11 +41,11 @@ public enum MarketingScreenshots {
         let json = try shellOut(to: .listSimulators)
         guard let data = json.data(using: .utf8) else { throw ExecutionError.stringToDataFailed }
         let simulators = try JSONDecoder().decode(SimulatorList.self, from: data)
-        let availableDevices = simulators.devices.flatMap { $0.value.map(\.name) }
+        let availableDevices = simulators.devices.flatMap { $0.value.map(\.deviceTypeIdentifier) }
         try devices.forEach { device in
-            if availableDevices.contains(device.simulatorName) {
+            if availableDevices.contains(device.rawValue) {
                 print("     📲 \(device.simulatorName) simulator is created. Checking the status...")
-                let simulator = simulators.simulator(named: device.simulatorName)
+                let simulator = simulators.simulator(deviceTypeIdentifier: device.rawValue)
                 let state: String
                 switch simulator?.state {
                 case .booted: state = "Booted"
@@ -55,10 +57,10 @@ public enum MarketingScreenshots {
 
                 if simulator?.state != .shutdown {
                     print("     📱💤 Shutting down the device: \(device.simulatorName)")
-                    try shellOut(to: .shutdownSimulator(named: device.simulatorName))
+                    try shellOut(to: .shutdownSimulator(device))
                 }
             } else {
-                try shellOut(to: .createSimulator(name: device.simulatorName))
+                try shellOut(to: .createSimulator(device))
             }
         }
     }
@@ -86,7 +88,7 @@ public enum MarketingScreenshots {
     ) throws {
         print("📱 Currently running on Simulator named: \(device.simulatorName) for screenshot size \(device.screenDescription)")
         print("     📲 Booting the device: \(device.simulatorName)")
-        try shellOut(to: .bootSimulator(named: device.simulatorName))
+        try shellOut(to: .bootSimulator(device))
         print("     👷‍♀️ Generation of screenshots for \(device.simulatorName) via test plan in progress")
         print("     🧵 This will run on thread \(Thread.current)")
         print("     🐢 This usually takes some time and some resources...")
@@ -105,7 +107,7 @@ public enum MarketingScreenshots {
                 try shellOut(
                     to: .iOSTest(
                         scheme: projectName,
-                        simulatorName: device.simulatorName,
+                        device: device,
                         derivedDataPath: derivedDataPath,
                         testPlan: planName
                     )
@@ -124,7 +126,7 @@ public enum MarketingScreenshots {
                 retry -= 1
             }
         }
-        try shellOut(to: .shutdownSimulator(named: device.simulatorName))
+        try shellOut(to: .shutdownSimulator(device))
     }
 
     private static func macOSScreenshots(projectName: String, planName: String) throws {

@@ -2,13 +2,15 @@ import Foundation
 import ShellOut
 
 extension ShellOutCommand {
+    typealias Device = MarketingScreenshots.Device
+
     static func iOSTest(
         scheme: String,
-        simulatorName: String,
+        device: Device,
         derivedDataPath: String,
         testPlan: String
     ) -> ShellOutCommand {
-        let command = "xcodebuild test -scheme \"\(scheme)\" -destination \"platform=iOS Simulator,name=\(simulatorName)\" -derivedDataPath \(derivedDataPath) -testPlan \(testPlan)"
+        let command = "xcodebuild test -scheme \"\(scheme)\" -destination \"platform=iOS Simulator,name=\(device.rawValue)\" -derivedDataPath \(derivedDataPath) -testPlan \(testPlan)"
         return ShellOutCommand(string: command)
     }
 
@@ -25,16 +27,20 @@ extension ShellOutCommand {
         ShellOutCommand(string: "xcrun simctl list -j devices available")
     }
 
-    static func createSimulator(name: String) -> ShellOutCommand {
-        ShellOutCommand(string: "xcrun simctl create \"\(name)\"")
+    static func createSimulator(_ device: Device) -> ShellOutCommand {
+        ShellOutCommand(string: "xcrun simctl create \"\(device.simulatorName)\" \(device.rawValue)")
     }
 
-    static func bootSimulator(named name: String) -> ShellOutCommand {
-        ShellOutCommand(string: "xcrun simctl boot \"\(name)\"")
+    static func bootSimulator(_ device: Device) -> ShellOutCommand {
+        ShellOutCommand(string: "xcrun simctl boot \"\(device.simulatorName)\"")
     }
 
-    static func shutdownSimulator(named name: String) -> ShellOutCommand {
-        ShellOutCommand(string: "xcrun simctl shutdown \"\(name)\"")
+    static func shutdownSimulator(_ device: Device) -> ShellOutCommand {
+        ShellOutCommand(string: "xcrun simctl shutdown \"\(device.simulatorName)\"")
+    }
+
+    static var availableDeviceTypes: ShellOutCommand {
+        ShellOutCommand(string: "xcrun simctl list devicetypes")
     }
 }
 

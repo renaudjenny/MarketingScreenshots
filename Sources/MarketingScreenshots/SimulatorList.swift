@@ -3,8 +3,8 @@ import Foundation
 struct SimulatorList: Decodable {
     let devices: [String: [Simulator]]
 
-    func simulator(named: String) -> Simulator? {
-        devices.flatMap { $0.value }.first { $0.name == named }
+    func simulator(deviceTypeIdentifier: String) -> Simulator? {
+        devices.flatMap { $0.value }.first { $0.deviceTypeIdentifier == deviceTypeIdentifier }
     }
 }
 
