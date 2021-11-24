@@ -6,11 +6,11 @@ extension ShellOutCommand {
 
     static func iOSTest(
         scheme: String,
-        device: Device,
+        simulatorId: String,
         derivedDataPath: String,
         testPlan: String
     ) -> ShellOutCommand {
-        let command = "xcodebuild test -scheme \"\(scheme)\" -destination \"platform=iOS Simulator,name=\(device.rawValue)\" -derivedDataPath \(derivedDataPath) -testPlan \(testPlan)"
+        let command = "xcodebuild test -scheme \"\(scheme)\" -destination \"platform=iOS Simulator,id=\(simulatorId)\" -derivedDataPath \(derivedDataPath) -testPlan \(testPlan)"
         return ShellOutCommand(string: command)
     }
 

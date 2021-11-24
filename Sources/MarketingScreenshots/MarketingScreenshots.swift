@@ -67,11 +67,15 @@ public enum MarketingScreenshots {
 
     private static func generateScreenshots(project: Project, planName: String) throws {
         print("📺 Starting generating Marketing screenshots...")
+        let json = try shellOut(to: .listSimulators)
+        guard let data = json.data(using: .utf8) else { throw ExecutionError.stringToDataFailed }
+        let simulators = try JSONDecoder().decode(SimulatorList.self, from: data)
         switch project {
         case let .iOS(projectName, devices):
             try devices.forEach { device in
                 try iOSScreenshots(
                     for: device,
+                    simulatorId: simulators.simulator(deviceTypeIdentifier: device.rawValue)!.udid,
                     projectName: projectName,
                     planName: planName
                 )
@@ -83,6 +87,7 @@ public enum MarketingScreenshots {
 
     private static func iOSScreenshots(
         for device: Device,
+        simulatorId: String,
         projectName: String,
         planName: String
     ) throws {
@@ -107,7 +112,7 @@ public enum MarketingScreenshots {
                 try shellOut(
                     to: .iOSTest(
                         scheme: projectName,
-                        device: device,
+                        simulatorId: simulatorId,
                         derivedDataPath: derivedDataPath,
                         testPlan: planName
                     )
