@@ -4,4 +4,5 @@ enum ExecutionError: Error {
     case uiTestFailed(String)
     case screenshotExtractionFailed(String)
     case stringToDataFailed
+    case xcResultNameMissing(String)
 }

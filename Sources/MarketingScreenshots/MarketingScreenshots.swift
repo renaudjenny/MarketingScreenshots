@@ -180,7 +180,8 @@ public enum MarketingScreenshots {
         }
         let summaries = result.getTestPlanRunSummaries(id: testPlanRunSummariesId)?.summaries ?? []
         for summary in summaries {
-            print("         ⛏ extraction for the configuration \(summary.name) in progress")
+            guard let summaryName = summary.name else { throw ExecutionError.xcResultNameMissing("summary.name") }
+            print("         ⛏ extraction for the configuration \(summaryName) in progress")
             for test in summary.screenshotTests ?? [] {
                 try exportScreenshot(
                     name: name,
@@ -200,7 +201,10 @@ public enum MarketingScreenshots {
         summary: ActionTestPlanRunSummary,
         test: ActionTestMetadata
     ) throws {
-        let normalizedTestName = test.name
+        guard let testName = test.name else { throw ExecutionError.xcResultNameMissing("test.name") }
+        guard let summaryName = summary.name else { throw ExecutionError.xcResultNameMissing("summary.name") }
+
+        let normalizedTestName = testName
             .replacingOccurrences(of: "test", with: "")
             .replacingOccurrences(of: "Screenshot()", with: "")
         print("             👉 extraction of \(normalizedTestName) in progress")
@@ -208,25 +212,25 @@ public enum MarketingScreenshots {
         guard let summaryId = test.summaryRef?.id
         else {
             throw ExecutionError.screenshotExtractionFailed(
-                "Cannot get summary id from \(summary.name) for \(test.name)"
+                "Cannot get summary id from \(summaryName) for \(testName)"
             )
         }
 
         guard let payloadId = result.screenshotAttachmentPayloadId(summaryId: summaryId)
         else {
             throw ExecutionError.screenshotExtractionFailed(
-                "Cannot get payload id from \(summary.name) for \(test.name)"
+                "Cannot get payload id from \(summaryName) for \(testName)"
             )
         }
 
         guard let screenshotData = result.getPayload(id: payloadId)
         else {
             throw ExecutionError.screenshotExtractionFailed(
-                "Cannot get data from the screenshot of \(summary.name) for \(test.name)"
+                "Cannot get data from the screenshot of \(summaryName) for \(testName)"
             )
         }
 
-        let path = "\(exportFolder)/Screenshot - \(screenDescription) - \(summary.name)"
+        let path = "\(exportFolder)/Screenshot - \(screenDescription) - \(summaryName)"
             + " - \(normalizedTestName) - \(name).png"
         try screenshotData.write(to: URL(fileURLWithPath: path))
         print("              📸 \(normalizedTestName) is available here: \(path)")

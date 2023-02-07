@@ -13,8 +13,8 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/MaxDesiatov/XMLCoder.git", from: "0.13.0"),
-        .package(url: "https://github.com/davidahouse/XCResultKit", from: "0.9.2"),
+        .package(url: "https://github.com/MaxDesiatov/XMLCoder.git", from: "0.15.0"),
+        .package(url: "https://github.com/davidahouse/XCResultKit", from: "1.0.1"),
         .package(url: "https://github.com/JohnSundell/ShellOut", from: "2.3.0"),
     ],
     targets: [
