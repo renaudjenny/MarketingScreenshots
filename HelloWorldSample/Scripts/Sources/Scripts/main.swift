@@ -2,7 +2,6 @@ import MarketingScreenshots
 
 try MarketingScreenshots.iOS(
     devices: [
-        .iPhoneSE_1st_Generation,
         .iPhone8Plus,
         .iPhoneSE_2nd_Generation,
         .iPhone12Pro,
