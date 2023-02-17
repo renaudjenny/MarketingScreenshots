@@ -5,4 +5,6 @@ enum ExecutionError: Error {
     case screenshotExtractionFailed(String)
     case stringToDataFailed
     case xcResultNameMissing(String)
+    case projectFolderNotFound
+    case deviceNameUnknown(String)
 }
