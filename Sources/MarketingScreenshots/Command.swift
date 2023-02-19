@@ -107,27 +107,18 @@ struct MarketingScreenshotsCommand: AsyncParsableCommand {
 
             let destination = "platform=iOS Simulator,id=\(simulatorID)"
 
-            let screenshotGeneration = Commandline(
-                """
-                xcodebuild test\
-                 -scheme \(quote: scheme)\
-                 -destination \(quote: destination)\
-                 -derivedDataPath \(derivedDataURL.relativePath)\
-                 -testPlan \(testPlan)
-                """,
-                currentDirectoryURL: projectURL
-            )
-            // Retry mechanism?
-            let task = screenshotGeneration.run()
-            for try await line in screenshotGeneration.lines { print("\t\(line)") }
-
-            for try await line in screenshotGeneration.errorLines
-            where line.contains(try Regex("error").ignoresCase()) { print("\t\(line)") }
-
-            try await task.value
-
-            print("\t✅ Generation of screenshots for \(device.simulatorName) via test plan done")
-
+            for retry in 1...5 {
+                if retry > 1 {
+                    print("\t🔄 Previous test failed, let's retry. Attempts: \(retry)")
+                }
+                do {
+                    try await runTest(destination: destination)
+                    break
+                } catch let ExecutionError.commandFailure(command, code) {
+                    print("\t😥 Test has failed with code: \(code)")
+                    if retry >= 5 { throw ExecutionError.commandFailure(command, code: code) }
+                }
+            }
             print("\t👷‍♀️ Extraction and renaming of screenshots for \(device.simulatorName) in progress")
 
             let testURL = derivedDataURL.appending(components: "Logs", "Test")
@@ -187,6 +178,29 @@ struct MarketingScreenshotsCommand: AsyncParsableCommand {
             print("\t💤 Shutting down the device: \(device.simulatorName)")
             try await Commandline("xcrun simctl shutdown \(quote: device.simulatorName)").run().value
         }
+    }
+
+    func runTest(destination: String) async throws {
+        let screenshotGeneration = Commandline(
+            """
+            xcodebuild test\
+             -scheme \(quote: scheme)\
+             -destination \(quote: destination)\
+             -derivedDataPath \(derivedDataURL.relativePath)\
+             -testPlan \(testPlan)
+            """,
+            currentDirectoryURL: projectURL
+        )
+
+        let task = screenshotGeneration.run()
+        // Filter non meaningful lines (or only display them on error)
+        for try await line in screenshotGeneration.lines
+        where line.starts(with: #/Test Suite|Test Case|t =|\*\*/#) { print("\t\(line)") }
+
+        for try await line in screenshotGeneration.errorLines
+        where line.contains(#/error/#.ignoresCase()) { print("\t\(line)") }
+
+        try await task.value
     }
 }
 

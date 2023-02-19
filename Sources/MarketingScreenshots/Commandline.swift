@@ -29,10 +29,12 @@ struct Commandline {
                     continuation.resume(with: .failure(error))
                 }
                 process.terminationHandler = { process in
-                    if process.terminationReason == .exit {
+                    if process.terminationStatus == 0 {
                         continuation.resume(returning: ())
                     } else {
-                        continuation.resume(with: .failure(ExecutionError.commandFailure(command)))
+                        continuation.resume(with: .failure(
+                            ExecutionError.commandFailure(command, code: process.terminationStatus)
+                        ))
                     }
                 }
             }

@@ -8,5 +8,5 @@ enum ExecutionError: Error {
     case projectFolderNotFound
     case deviceNameUnknown(String)
     case missingSimulatorID(for: MarketingScreenshots.Device)
-    case commandFailure(String)
+    case commandFailure(String, code: Int32)
 }
