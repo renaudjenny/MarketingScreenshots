@@ -1,43 +1,32 @@
 {
-  "object": {
-    "pins": [
-      {
-        "package": "ShellOut",
-        "repositoryURL": "https://github.com/JohnSundell/ShellOut",
-        "state": {
-          "branch": null,
-          "revision": "e1577acf2b6e90086d01a6d5e2b8efdaae033568",
-          "version": "2.3.0"
-        }
-      },
-      {
-        "package": "swift-argument-parser",
-        "repositoryURL": "https://github.com/apple/swift-argument-parser",
-        "state": {
-          "branch": null,
-          "revision": "4ad606ba5d7673ea60679a61ff867cc1ff8c8e86",
-          "version": "1.2.1"
-        }
-      },
-      {
-        "package": "XCResultKit",
-        "repositoryURL": "https://github.com/davidahouse/XCResultKit",
-        "state": {
-          "branch": null,
-          "revision": "3c8206371aa630248afddd085cce036b625c1455",
-          "version": "1.0.1"
-        }
-      },
-      {
-        "package": "XMLCoder",
-        "repositoryURL": "https://github.com/MaxDesiatov/XMLCoder.git",
-        "state": {
-          "branch": null,
-          "revision": "c438dad94f6a243b411b70a4b4bac54595064808",
-          "version": "0.15.0"
-        }
+  "pins" : [
+    {
+      "identity" : "swift-argument-parser",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-argument-parser",
+      "state" : {
+        "revision" : "4ad606ba5d7673ea60679a61ff867cc1ff8c8e86",
+        "version" : "1.2.1"
       }
-    ]
-  },
-  "version": 1
+    },
+    {
+      "identity" : "xcresultkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/davidahouse/XCResultKit",
+      "state" : {
+        "revision" : "3c8206371aa630248afddd085cce036b625c1455",
+        "version" : "1.0.1"
+      }
+    },
+    {
+      "identity" : "xmlcoder",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/MaxDesiatov/XMLCoder.git",
+      "state" : {
+        "revision" : "c438dad94f6a243b411b70a4b4bac54595064808",
+        "version" : "0.15.0"
+      }
+    }
+  ],
+  "version" : 2
 }
