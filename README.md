@@ -68,96 +68,60 @@ You can manage multiple language (and generate screenshots for each languages yo
 
 TODO 🛠
 
-## Write your script
+## Use the commandline tool
 
-The easiest way to add the script to generate marketing screenshots automatically is to create a folder `Scripts` into your project and then create a Swift Package of type `executable` in it.
-
-```bash
-$ cd YourProject
-$ mkdir Scripts
-$ cd Scripts
-$ swift package init --type=executable
-```
-
-To edit your fresh executable, the easiest way is to open the project with Xcode with this command:
-```bash
-$ open Package.swift
-```
-
-You can now edit the `Package.swift` file and add the `MarketingScreenshots` library to it. Also, don't forget to add the dependency to the **Scripts** target.
-
-You also have to set the platforms to `.macOS(.v11)` because the library is supposed to only work for this target. If you skip this, you will get an error like
-* `The package product 'MarketingScreenshots' requires minimum platform version 11.0 for the macOS platform, but this target supports 10.15`
-* Or an other more generic error.
-
-Your Package.swift should look like this:
-
-```swift
-// swift-tools-version:5.3
-// The swift-tools-version declares the minimum version of Swift required to build this package.
-
-import PackageDescription
-
-let package = Package(
-    name: "Scripts",
-    platforms: [.macOS(.v11)],
-    dependencies: [
-        .package(url: "https://github.com/renaudjenny/MarketingScreenshots", from: "0.0.6"),
-    ],
-    targets: [
-        .target(
-            name: "Scripts",
-            dependencies: ["MarketingScreenshots"]),
-        .testTarget(
-            name: "ScriptsTests",
-            dependencies: ["Scripts"]),
-    ]
-)
-```
-
-You can now edit the file `Sources/Scripts/main.swift` to add what's needed for your project
-
-```swift
-import MarketingScreenshots
-
-try MarketingScreenshots.iOS(
-    devices: [
-        .iPhoneSE_1st_Generation,
-        .iPhone8Plus,
-        .iPhoneSE_2nd_Generation,
-        .iPhone12Pro,
-        .iPhone12ProMax,
-
-        .iPadPro_97,
-        .iPadPro_129_2nd_Generation,
-        .iPadPro_110_1st_Generation,
-        .iPadPro_129_4th_Generation,
-    ],
-    projectName: "HelloWorldSample (iOS)"
-)
-
-try MarketingScreenshots.macOS(projectName: "HelloWorldSample (macOS)")
-```
-
-What you need to focus especially is what you put in the `projectName`. It should perfectly match the target name of what you're going to use for tests. In my case, that's `HelloWorldSample (iOS)` (notice the `(iOS)`), do not forget any space or parenthesis if your target name has some. Also, not that I slightly changed the name for the macOS target. And obviously, the `macOS` `projectName` should also match the target name.
-
-You should be able to build the package with `CMD+B` but you won't be able to run it yet without error. The working directory has to be changed for this script to work.
-
-To edit the working directory, you need to edit the scheme.
-![Edit Scripts scheme](assets/scripts_edit_scheme.png)
-
-Select `Run` in the first column, select Options tab, Check "Use custom working directory" and click on the "Choose a New Location" icon.
-![Change working directory](assets/scripts_change_working_directory.png)
-
-Choose your project directory, basically where your `YourProject.xcproj` is.
-
-Now you should be able to run the Script and visualise some screenshots if your test plan is well made.
-
-You can also run it with the command line, which is useful as you don't have to open Xcode at all.
+You can use the commandline tool by compiling it for release. Inside this project folder do:
 
 ```bash
-$ cd YourProject
-$ swift run --package-path Scripts
+swift build -c release
+sudo cp $(swift build -c release --show-bin-path)/MarketingScreenshots  /usr/local/bin/marketing-screenshots
+```
+`sudo` is optional on Intel Mac.
+
+If you execute `marketing-screenshots` now you will something like
+
+```bash
+marketing-screenshots --help
+USAGE: marketing-screenshots-command <path> <scheme> <devices> ...
+
+ARGUMENTS:
+  <path>                  Path to the project
+  <scheme>                Scheme of the project, for instance: HelloWorldSample (iOS)
+  <devices>               Choose devices among this list:
+                              iPhone 14 Plus
+                              iPhone 14 Pro Max
+                              iPhone 14 Pro
+                              iPhone 14
+                              iPhone 8 Plus
+                              iPhone SE (3rd generation)
+                              iPad Pro (12.9-inch) (6th generation)
+                              iPad Pro (12.9-inch) (2nd generation)
+                              iPad Pro (11-inch) (4th generation)
+
+OPTIONS:
+  -h, --help              Show help information.
+```
+
+Here is an example.
+You are now in your own project where the scheme is `HelloWorldSample (iOS)`, let's say you want to execute the screenshot for `iPhone 14` and `iPhone 14 Pro`, you'll do:
+
+```bash
+marketing-screenshots . "HelloWorldSample (iOS)" "iPhone 14" "iPhone 14 Pro"
+🗂 Project directory: .
+    Add export directory .ExportedScreenshots
+🤖 Check local simulators for these devices:
+    iPhone 14
+    iPhone 14 Pro
+    iPhone 14 simulator is available. Checking the status...
+        Device state: Shutdown, availability: Available
+    iPhone 14 Pro simulator is available. Checking the status...
+        Device state: Booted, availability: Available
+        Shutting down the device: iPhone 14 Pro
+📺 Starting generating Marketing screenshots...
+📱 Currently running on Simulator named: iPhone 14 for screenshot size 5.8 inch
+    📲 Booting the device: iPhone 14
+    👷‍♀️ Generation of screenshots for iPhone 14 via test plan in progress
+    ...
 ```
 
 ## Github Action

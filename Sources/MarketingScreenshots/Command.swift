@@ -119,68 +119,14 @@ struct MarketingScreenshotsCommand: AsyncParsableCommand {
                     if retry >= 5 { throw ExecutionError.commandFailure(command, code: code) }
                 }
             }
-            print("\t👷‍♀️ Extraction and renaming of screenshots for \(device.simulatorName) in progress")
-
-            let testURL = derivedDataURL.appending(components: "Logs", "Test")
-
-            let resultFileURL = testURL.appending(component: "LogStoreManifest.plist")
-            let resultFile = try XMLDecoder().decode(LogStoreManifest.self, from: Data(contentsOf: resultFileURL))
-
-            let lastXCResultFileNameURL = testURL.appending(component: resultFile.lastXCResultFileName)
-            let result = XCResultFile(url: lastXCResultFileNameURL)
-
-            guard let testPlanRunSummariesId = result.testPlanSummariesId
-            else { throw ExecutionError.uiTestFailed("No TestPlan found!") }
-            let summaries = result.getTestPlanRunSummaries(id: testPlanRunSummariesId)?.summaries ?? []
-            for summary in summaries {
-                guard let summaryName = summary.name else { throw ExecutionError.xcResultNameMissing("summary.name") }
-                print("\t⛏ extraction for the configuration \(summaryName) in progress")
-                for test in summary.screenshotTests ?? [] {
-                    guard let testName = test.name else { throw ExecutionError.xcResultNameMissing("test.name") }
-                    guard let summaryName = summary.name else { throw ExecutionError.xcResultNameMissing("summary.name") }
-
-                    let normalizedTestName = testName
-                        .replacingOccurrences(of: "test", with: "")
-                        .replacingOccurrences(of: "Screenshot()", with: "")
-                    print("\t👉 extraction of \(normalizedTestName) in progress")
-
-                    guard let summaryId = test.summaryRef?.id
-                    else {
-                        throw ExecutionError.screenshotExtractionFailed(
-                            "Cannot get summary id from \(summaryName) for \(testName)"
-                        )
-                    }
-
-                    guard let payloadId = result.screenshotAttachmentPayloadId(summaryId: summaryId)
-                    else {
-                        throw ExecutionError.screenshotExtractionFailed(
-                            "Cannot get payload id from \(summaryName) for \(testName)"
-                        )
-                    }
-
-                    guard let screenshotData = result.getPayload(id: payloadId)
-                    else {
-                        throw ExecutionError.screenshotExtractionFailed(
-                            "Cannot get data from the screenshot of \(summaryName) for \(testName)"
-                        )
-                    }
-
-                    let screenshotName = """
-                    Screenshot - \(device.screenDescription) - \(summaryName)"\
-                     - \(normalizedTestName) - \(device.simulatorName).png
-                    """
-                    let exportURL = exportFolderURL.appending(component: screenshotName)
-                    try screenshotData.write(to: exportURL)
-                    print("\t📸 \(normalizedTestName) is available here: \(exportURL.relativePath)")
-                }
-            }
+            try await extractScreenshots(device: device)
 
             print("\t💤 Shutting down the device: \(device.simulatorName)")
             try await Commandline("xcrun simctl shutdown \(quote: device.simulatorName)").run().value
         }
     }
 
-    func runTest(destination: String) async throws {
+    private func runTest(destination: String) async throws {
         let screenshotGeneration = Commandline(
             """
             xcodebuild test\
@@ -201,6 +147,64 @@ struct MarketingScreenshotsCommand: AsyncParsableCommand {
         where line.contains(#/error/#.ignoresCase()) { print("\t\(line)") }
 
         try await task.value
+    }
+
+    private func extractScreenshots(device: Device) async throws {
+        print("\t👷‍♀️ Extraction and renaming of screenshots for \(device.simulatorName) in progress")
+
+        let testURL = derivedDataURL.appending(components: "Logs", "Test")
+
+        let resultFileURL = testURL.appending(component: "LogStoreManifest.plist")
+        let resultFile = try XMLDecoder().decode(LogStoreManifest.self, from: Data(contentsOf: resultFileURL))
+
+        let lastXCResultFileNameURL = testURL.appending(component: resultFile.lastXCResultFileName)
+        let result = XCResultFile(url: lastXCResultFileNameURL)
+
+        guard let testPlanRunSummariesId = result.testPlanSummariesId
+        else { throw ExecutionError.uiTestFailed("No TestPlan found!") }
+        let summaries = result.getTestPlanRunSummaries(id: testPlanRunSummariesId)?.summaries ?? []
+        for summary in summaries {
+            guard let summaryName = summary.name else { throw ExecutionError.xcResultNameMissing("summary.name") }
+            print("\t⛏ extraction for the configuration \(summaryName) in progress")
+            for test in summary.screenshotTests ?? [] {
+                guard let testName = test.name else { throw ExecutionError.xcResultNameMissing("test.name") }
+                guard let summaryName = summary.name else { throw ExecutionError.xcResultNameMissing("summary.name") }
+
+                let normalizedTestName = testName
+                    .replacingOccurrences(of: "test", with: "")
+                    .replacingOccurrences(of: "Screenshot()", with: "")
+                print("\t👉 extraction of \(normalizedTestName) in progress")
+
+                guard let summaryId = test.summaryRef?.id
+                else {
+                    throw ExecutionError.screenshotExtractionFailed(
+                        "Cannot get summary id from \(summaryName) for \(testName)"
+                    )
+                }
+
+                guard let payloadId = result.screenshotAttachmentPayloadId(summaryId: summaryId)
+                else {
+                    throw ExecutionError.screenshotExtractionFailed(
+                        "Cannot get payload id from \(summaryName) for \(testName)"
+                    )
+                }
+
+                guard let screenshotData = result.getPayload(id: payloadId)
+                else {
+                    throw ExecutionError.screenshotExtractionFailed(
+                        "Cannot get data from the screenshot of \(summaryName) for \(testName)"
+                    )
+                }
+
+                let screenshotName = """
+                Screenshot - \(device.screenDescription) - \(summaryName)"\
+                 - \(normalizedTestName) - \(device.simulatorName).png
+                """
+                let exportURL = exportFolderURL.appending(component: screenshotName)
+                try screenshotData.write(to: exportURL)
+                print("\t📸 \(normalizedTestName) is available here: \(exportURL.relativePath)")
+            }
+        }
     }
 }
 
