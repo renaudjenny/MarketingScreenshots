@@ -7,6 +7,6 @@ enum ExecutionError: Error {
     case xcResultNameMissing(String)
     case projectFolderNotFound
     case deviceNameUnknown(String)
-    case missingSimulatorID(for: MarketingScreenshots.Device)
+    case missingSimulatorID(for: Device)
     case commandFailure(String, code: Int32)
 }

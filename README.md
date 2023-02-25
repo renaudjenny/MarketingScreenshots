@@ -133,4 +133,3 @@ TODO 🛠
 This library is using
 - [XCResultKit](https://github.com/davidahouse/XCResultKit) to get where to search for screenshots
 - [XMLCoder](https://github.com/MaxDesiatov/XMLCoder) to parse XML with ease
-- [ShellOut](https://github.com/JohnSundell/ShellOut) to use shell commands with ease

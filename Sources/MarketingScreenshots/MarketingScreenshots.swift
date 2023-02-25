@@ -4,7 +4,7 @@ import XMLCoder
 import XCResultKit
 
 @main
-struct MarketingScreenshotsCommand: AsyncParsableCommand {
+struct MarketingScreenshots: AsyncParsableCommand {
     @Argument(help: "Path to the project", completion: .directory)
     var path: String
 
@@ -33,8 +33,6 @@ struct MarketingScreenshotsCommand: AsyncParsableCommand {
         try await checkSimulatorAvailability()
         try await generateScreenshots()
     }
-
-    typealias Device = MarketingScreenshots.Device
 
     private func prepare() throws {
         print("🗂 Project directory: \(path)")
@@ -208,7 +206,7 @@ struct MarketingScreenshotsCommand: AsyncParsableCommand {
     }
 }
 
-extension MarketingScreenshots.Device: Decodable {
+extension Device: Decodable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
