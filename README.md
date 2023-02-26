@@ -78,16 +78,19 @@ sudo cp $(swift build -c release --show-bin-path)/MarketingScreenshots  /usr/loc
 ```
 `sudo` is optional on Intel Mac.
 
-If you execute `marketing-screenshots` now you will something like
+If you execute `marketing-screenshots --help` now you will something like
 
 ```bash
 marketing-screenshots --help
-USAGE: marketing-screenshots-command <path> <scheme> <devices> ...
+USAGE: marketing-screenshots <path> --scheme <scheme> [--test-plan <test-plan>] --devices <devices> ...
 
 ARGUMENTS:
   <path>                  Path to the project
-  <scheme>                Scheme of the project, for instance: HelloWorldSample (iOS)
-  <devices>               Choose devices among this list:
+
+OPTIONS:
+  --scheme <scheme>       Scheme of the project, for instance: HelloWorldSample (iOS)
+  --test-plan <test-plan> Test Plan of the Marketing screenshots, for instance: Marketing (default: Marketing)
+  --devices <devices>     Choose devices among this list:
                               iPhone 14 Plus
                               iPhone 14 Pro Max
                               iPhone 14 Pro
@@ -97,8 +100,6 @@ ARGUMENTS:
                               iPad Pro (12.9-inch) (6th generation)
                               iPad Pro (12.9-inch) (2nd generation)
                               iPad Pro (11-inch) (4th generation)
-
-OPTIONS:
   -h, --help              Show help information.
 ```
 

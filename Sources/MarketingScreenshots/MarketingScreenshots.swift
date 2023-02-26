@@ -8,13 +8,14 @@ struct MarketingScreenshots: AsyncParsableCommand {
     @Argument(help: "Path to the project", completion: .directory)
     var path: String
 
-    @Argument(help: "Scheme of the project, for instance: HelloWorldSample (iOS)")
+    @Option(help: "Scheme of the project, for instance: HelloWorldSample (iOS)")
     var scheme: String
 
-//    @Argument(help: "Test Plan of the Marketing screenshots, for instance: Marketing")
+    @Option(help: "Test Plan of the Marketing screenshots, for instance: Marketing")
     var testPlan = "Marketing"
 
-    @Argument(
+    @Option(
+        parsing: .upToNextOption,
         help: "Choose devices among this list:\n\(Device.allCases.map { "\t\($0.simulatorName)" }.joined(separator: "\n"))",
         completion: .list(Device.allCases.map(\.simulatorName)),
         transform: Device.init(name:)
